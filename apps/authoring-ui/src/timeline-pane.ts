@@ -14,17 +14,56 @@ template.innerHTML = `
 `;
 
 export class TimelinePane extends HTMLElement {
+  private static readonly DEBUG = false;
+
   constructor() {
-    super();
-    this.attachShadow({ mode: 'open' });
-    this.shadowRoot?.appendChild(template.content.cloneNode(true));
-    onLocaleChange(() => this._update());
+    try {
+      super();
+      this.attachShadow({ mode: 'open' });
+      
+      if (!this.shadowRoot) {
+        throw new Error('Failed to create shadow root');
+      }
+      
+      this.shadowRoot.appendChild(template.content.cloneNode(true));
+      onLocaleChange(() => this._update());
+      
+      if (TimelinePane.DEBUG) {
+        console.log('TimelinePane: initialized successfully');
+      }
+    } catch (error) {
+      console.error('TimelinePane: constructor failed', error);
+      throw error;
+    }
   }
-  _update() {
-    const header = this.shadowRoot?.querySelector('header');
-    if (header) header.textContent = t('timeline');
-    const div = this.shadowRoot?.querySelector('div');
-    if (div) div.textContent = t('timelinePlaceholder');
+
+  private _update(): void {
+    try {
+      if (!this.shadowRoot) {
+        console.warn('TimelinePane: shadowRoot not available during update');
+        return;
+      }
+
+      const header = this.shadowRoot.querySelector('header');
+      if (header) {
+        header.textContent = t('timeline');
+      } else {
+        console.warn('TimelinePane: header element not found');
+      }
+
+      const div = this.shadowRoot.querySelector('div');
+      if (div) {
+        div.textContent = t('timelinePlaceholder');
+      } else {
+        console.warn('TimelinePane: div element not found');
+      }
+
+      if (TimelinePane.DEBUG) {
+        console.log('TimelinePane: update completed');
+      }
+    } catch (error) {
+      console.error('TimelinePane: update failed', error);
+    }
   }
 }
 customElements.define('timeline-pane', TimelinePane);

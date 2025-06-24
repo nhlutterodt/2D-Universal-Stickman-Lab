@@ -38,21 +38,75 @@ export async function loadCharacterStreamed(bundleUrl: string, options: LoaderOp
   // 3. Return a proxy character object with lazy attachments
   const character = {
     meta,
-    get anim() { return animPromise; },
-    get skins() { return Promise.all(skinsPromises); },
-    setLodDistance(px: number) { this._lodDistance = px; },
+    _animCache: null as any,
+    _skinsCache: null as any[] | null,
     _lodDistance: options.lodDistance ?? 800,
-    // LOD logic: call this per-frame or on camera move
+    lod: 'full' as 'full' | 'low' | 'proxy',
+    
+    get anim() { 
+      if (!animPromise) {
+        console.warn('[StreamingLoader] No animation data available');
+        return Promise.resolve(null);
+      }
+      return animPromise.catch(err => {
+        console.error('[StreamingLoader] Failed to load animation:', err);
+        throw new Error(`Animation loading failed: ${err.message}`);
+      });
+    },
+    
+    get skins() { 
+      if (!skinsPromises.length) {
+        console.warn('[StreamingLoader] No skin data available');
+        return Promise.resolve([]);
+      }
+      return Promise.all(skinsPromises).catch(err => {
+        console.error('[StreamingLoader] Failed to load skins:', err);
+        throw new Error(`Skins loading failed: ${err.message}`);
+      });
+    },
+    
+    setLodDistance(px: number) { 
+      if (typeof px !== 'number' || px <= 0) {
+        console.warn('[StreamingLoader] Invalid LOD distance:', px);
+        return;
+      }
+      this._lodDistance = px; 
+    },
+    
     updateLod(cameraDist: number) {
-      if (cameraDist > this._lodDistance) {
-        this.lod = 'proxy'; // collapse to 1-sprite
-      } else if (cameraDist > this._lodDistance / 2) {
-        this.lod = 'low'; // fewer IK iterations
-      } else {
-        this.lod = 'full';
+      if (typeof cameraDist !== 'number') {
+        console.warn('[StreamingLoader] Invalid camera distance:', cameraDist);
+        return;
+      }
+      
+      try {
+        const prevLod = this.lod;
+        if (cameraDist > this._lodDistance) {
+          this.lod = 'proxy';
+        } else if (cameraDist > this._lodDistance / 2) {
+          this.lod = 'low';
+        } else {
+          this.lod = 'full';
+        }
+        
+        if (prevLod !== this.lod) {
+          console.debug(`[StreamingLoader] LOD changed: ${prevLod} -> ${this.lod} (dist: ${cameraDist})`);
+        }
+      } catch (err) {
+        console.error('[StreamingLoader] LOD update failed:', err);
       }
     },
-    lod: 'full' as 'full' | 'low' | 'proxy',
+    
+    // Debug helper
+    getLoadingStatus() {
+      return {
+        metaLoaded: !!this.meta,
+        animLoading: !!animPromise,
+        skinsLoading: skinsPromises.length > 0,
+        currentLod: this.lod,
+        lodDistance: this._lodDistance
+      };
+    }
   };
 
   // 4. Optionally, use IntersectionObserver to trigger anim/skins loading
