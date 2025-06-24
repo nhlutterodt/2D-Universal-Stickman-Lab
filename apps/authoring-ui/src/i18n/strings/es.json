@@ -1,0 +1,10 @@
+{
+  "viewport": "Visor",
+  "inspector": "Inspector",
+  "timeline": "Línea de tiempo",
+  "curveEditor": "Editor de curvas",
+  "selectEntity": "Seleccione una entidad para inspeccionar.",
+  "timelinePlaceholder": "La línea de tiempo va aquí.",
+  "curveEditorPlaceholder": "Interfaz del editor de curvas.",
+  "commandPalettePlaceholder": "Escriba un comando..."
+}

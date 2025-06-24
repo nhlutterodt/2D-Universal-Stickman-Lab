@@ -1,0 +1,43 @@
+{
+  "name": "char-lab",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "cli"
+  ],
+  "scripts": {
+    "dev": "pwsh ./scripts/dev.ps1",
+    "build": "tsc",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "lab-test-runner",
+    "test:e2e": "lab-e2e",
+    "e2e": "npm run test:e2e",
+    "coverage": "lab-test-runner --coverage && lab-e2e --coverage && lab-coverage-check 90",
+    "docgen": "lab-docgen ./packages/*/src --out ./docs",
+    "pack": "lab-packer --tree-shake --gzip --fail-if core > 25kB",
+    "build:prod": "ts-node ./scripts/build.ts",
+    "pwa": "lab-pwa-build",
+    "tauri": "lab-tauri-build",
+    "release": "bash ./scripts/release.sh",
+    "list-packages": "node ./scripts/list-packages.js",
+    "security:audit": "npm audit --json > security/audit.json",
+    "security:osv": "osv-scanner --lockfile=package-lock.json --json > security/osv.json",
+    "security:csp": "ts-node scripts/verify-csp.ts apps/authoring-ui/index.html",
+    "security:sri": "ts-node scripts/verify-sri.ts apps/authoring-ui/index.html",
+    "security:plugin-fuzz": "ts-node scripts/fuzz-plugin-host.ts",
+    "security:zap": "zap-cli quick-scan http://localhost:3000",
+    "security:ci": "npm run security:audit && npm run security:osv && npm run security:csp && npm run security:sri && npm run security:plugin-fuzz && npm run security:zap"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@types/jsdom": "^21.1.7",
+    "idb": "^8.0.3",
+    "jsdom": "^26.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

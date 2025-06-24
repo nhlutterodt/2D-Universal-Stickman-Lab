@@ -1,0 +1,146 @@
+/* Main theme variables */
+:root {
+  --bg-color: #f0f4f8;
+  --text-color: #334155;
+  --primary-color: #4f46e5;
+  --secondary-color: #e2e8f0;
+  --accent-color: #f8fafc;
+  --header-height: 3.5rem;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.header {
+  background-color: var(--primary-color);
+  color: #ffffff;
+  padding: 0 1rem;
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toolbar {
+  background-color: var(--accent-color);
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.5rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.canvas-container {
+  flex: 3;
+  position: relative;
+  background-color: var(--secondary-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: auto;
+}
+
+.controls {
+  flex: 1;
+  background-color: var(--accent-color);
+  padding: 1rem;
+  overflow-y: auto;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.export-container {
+  position: relative;
+  display: inline-block;
+}
+
+#loadCharacterInput {
+  display: none;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.8rem 1.2rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.button-primary {
+  background-color: var(--primary-color);
+  color: #ffffff;
+}
+
+.button-secondary {
+  background-color: var(--secondary-color);
+  color: var(--text-color);
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 1rem;
+  box-sizing: border-box;
+  background-color: #ffffff;
+  color: var(--text-color);
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+/* Ensure controls section can be interacted with */
+.controls {
+  z-index: 10;
+  pointer-events: auto;
+}
+
+/* Prevent canvas overlays from blocking clicks */
+.canvas-overlay,
+.shortcut-help {
+  pointer-events: none;
+}
+
+/* Export dropdown should still allow clicks */
+.export-options,
+.export-options .export-option {
+  pointer-events: auto;
+}
+
+/* Add rest of the styles... */

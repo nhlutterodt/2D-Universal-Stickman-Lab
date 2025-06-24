@@ -1,0 +1,10 @@
+{
+  "viewport": "عارض",
+  "inspector": "المفتش",
+  "timeline": "الجدول الزمني",
+  "curveEditor": "محرر المنحنيات",
+  "selectEntity": "حدد كيانًا للفحص.",
+  "timelinePlaceholder": "يظهر الجدول الزمني هنا.",
+  "curveEditorPlaceholder": "واجهة محرر المنحنيات.",
+  "commandPalettePlaceholder": "اكتب أمرًا..."
+}

@@ -1,0 +1,10 @@
+{
+  "viewport": "Viewport",
+  "inspector": "Inspector",
+  "timeline": "Timeline",
+  "curveEditor": "Curve Editor",
+  "selectEntity": "Select an entity to inspect.",
+  "timelinePlaceholder": "Timeline goes here.",
+  "curveEditorPlaceholder": "Curve editor UI.",
+  "commandPalettePlaceholder": "Type a command..."
+}

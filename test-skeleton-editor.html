@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2D Character Creator - Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f4f8;
+      color: #334155;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      background-color: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      width: 100%;
+      max-width: 1200px;
+      height: 90vh;
+    }
+    .header {
+      background-color: #4f46e5;
+      color: #ffffff;
+      padding: 1rem 1.5rem;
+      font-size: 1.5rem;
+      font-weight: 600;
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .main-content {
+      display: flex;
+      flex-grow: 1;
+      padding: 1.5rem;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .canvas-container {
+      flex: 3;
+      min-width: 300px;
+      background-color: #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+    }
+    canvas {
+      display: block;
+      background-color: transparent;
+    }
+    .controls {
+      flex: 1;
+      min-width: 280px;
+      background-color: #f8fafc;
+      border-radius: 8px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+      overflow-y: auto;
+    }
+    .control-group {
+      margin-bottom: 1rem;
+    }
+    .control-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: #475569;
+    }
+    .input-field {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 1rem;
+      box-sizing: border-box;
+      background-color: #ffffff;
+      color: #334155;
+    }
+    .button {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      padding: 0.8rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      text-align: center;
+      white-space: nowrap;
+      border: none;
+    }
+    .button-primary {
+      background-color: #4f46e5;
+      color: #ffffff;
+      border: 1px solid #4f46e5;
+      box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+    }
+    .button-primary:hover {
+      background-color: #4338ca;
+      border-color: #4338ca;
+      box-shadow: 0 6px 10px rgba(79, 70, 229, 0.3);
+      transform: translateY(-2px);
+    }
+    .button-secondary {
+      background-color: #e2e8f0;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+    }
+    .button-secondary:hover {
+      background-color: #cbd5e1;
+      border-color: #94a3b8;
+      transform: translateY(-1px);
+    }
+    .bone-list {
+      list-style: none;
+      padding: 0;
+      margin-top: 0.5rem;
+    }
+    .bone-list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 0.8rem;
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      margin-bottom: 0.4rem;
+      font-size: 0.95rem;
+      color: #334155;
+      cursor: pointer;
+      transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+    }
+    .bone-list-item:hover {
+      background-color: #f0f4f8;
+      border-color: #cbd5e1;
+    }
+    .bone-list-item.selected {
+      background-color: #bfdbfe;
+      border-color: #3b82f6;
+      font-weight: 600;
+      color: #1e3a8a;
+    }
+    .sliders {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .slider-group input[type="range"] {
+      flex-grow: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 8px;
+      background: #d1d5db;
+      border-radius: 5px;
+      outline: none;
+      opacity: 0.7;
+      transition: opacity .15s ease-in-out;
+    }
+    .slider-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #4f46e5;
+      cursor: grab;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      transition: background-color 0.15s ease-in-out;
+    }
+    .slider-group input[type="range"]::-webkit-slider-thumb:hover {
+      background: #4338ca;
+    }
+    .slider-group span {
+      font-size: 0.9rem;
+      width: 40px;
+      text-align: right;
+      color: #475569;
+    }
+    .form-row {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-end;
+    }
+    .form-row > div {
+      flex-grow: 1;
+    }
+    .button-group {
+      display: flex;
+      gap: 0.75rem;
+    }
+    .message-box {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.8);
+      color: #ffffff;
+      padding: 15px 25px;
+      border-radius: 8px;
+      font-size: 1rem;
+      z-index: 1000;
+      display: none;
+      text-align: center;
+    }
+    .message-box.show {
+      display: block;
+    }
+    .color-selection {
+      margin-bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .color-selection label {
+      font-weight: 500;
+      color: #475569;
+    }
+    .stats, .preview {
+      margin-top: 1.5rem;
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
+    .stats h2, .preview h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <span>2D Character Creator</span>
+      <div class="button-group">
+        <button id="saveCharacterBtn" class="button button-secondary">Save Character</button>
+        <button id="loadCharacterBtn" class="button button-secondary">Load Character</button>
+        <button id="resetCharacterBtn" class="button button-secondary">Reset Character</button>
+      </div>
+    </div>
+    <input type="file" id="loadCharacterInput" accept=".json" style="display:none;">
+    <div class="main-content">
+      <div class="canvas-container">
+        <canvas id="characterCanvas"></canvas>
+        <div id="messageBox" class="message-box"></div>
+      </div>
+      <div class="controls">
+        <div class="control-group">
+          <label for="boneNameInput">Bone Name</label>
+          <div class="form-row">
+            <div>
+              <input type="text" id="boneNameInput" class="input-field" placeholder="e.g., upperArm">
+            </div>
+            <button id="addBoneBtn" class="button button-primary">Add Bone</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <label for="boneList">Bones</label>
+          <ul id="boneList" class="bone-list">
+            <!-- Bone items will be injected here by JS -->
+          </ul>
+        </div>
+        <div class="control-group">
+          <label for="boneLengthSlider">Selected Bone Properties</label>
+          <div class="sliders">
+            <div class="slider-group">
+              <span>Length:</span>
+              <input type="range" id="boneLengthSlider" min="10" max="150" value="50">
+              <span id="boneLengthValue">50</span>
+            </div>
+            <div class="slider-group">
+              <span>Rotation:</span>
+              <input type="range" id="boneRotationSlider" min="-180" max="180" value="0">
+              <span id="boneRotationValue">0°</span>
+            </div>
+            <div class="slider-group">
+              <span>X Pos:</span>
+              <input type="range" id="boneXSlider" min="-300" max="300" value="0">
+              <span id="boneXValue">0</span>
+            </div>
+            <div class="slider-group">
+              <span>Y Pos:</span>
+              <input type="range" id="boneYSlider" min="-300" max="300" value="0">
+              <span id="boneYValue">0</span>
+            </div>
+          </div>
+          <button id="deleteBoneBtn" class="button button-secondary">Delete Selected Bone</button>
+        </div>
+        <div class="control-group color-selection">
+          <label for="color1">Primary Color:</label>
+          <input type="color" id="color1" name="color1" value="#ff0000">
+          <label for="color2">Secondary Color:</label>
+          <input type="color" id="color2" name="color2" value="#00ffff">
+        </div>
+        <div class="preview">
+          <h2>Character Preview</h2>
+          <div id="preview-limbs"></div>
+        </div>
+        <div class="stats">
+          <h2>Character Stats</h2>
+          <p id="elemental-strength"></p>
+          <p id="weakness"></p>
+          <p id="stats-explanation"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+// Robust 2D Skeleton Editor logic for index.html
+// Handles: add/select/delete bone, sliders, color pickers, preview, stats, save/load/reset
+
+class SkeletonEditor {
+  constructor() {
+    this.bones = [];
+    this.selectedBone = null;
+    this.color1 = '#ff0000';
+    this.color2 = '#00ffff';
+    
+    this.initUI();
+    this.renderBoneList();
+    this.renderPreview();
+    this.renderStats();
+  }
+
+  initUI() {
+    const addBtn = document.getElementById('addBoneBtn');
+    const nameInput = document.getElementById('boneNameInput');
+    const boneList = document.getElementById('boneList');
+    const deleteBtn = document.getElementById('deleteBoneBtn');
+    const lengthSlider = document.getElementById('boneLengthSlider');
+    const rotationSlider = document.getElementById('boneRotationSlider');
+    const xSlider = document.getElementById('boneXSlider');
+    const ySlider = document.getElementById('boneYSlider');
+    const color1Input = document.getElementById('color1');
+    const color2Input = document.getElementById('color2');
+    const saveBtn = document.getElementById('saveCharacterBtn');
+    const loadBtn = document.getElementById('loadCharacterBtn');
+    const loadInput = document.getElementById('loadCharacterInput');
+    const resetBtn = document.getElementById('resetCharacterBtn');
+
+    addBtn.onclick = () => {
+      const name = nameInput.value.trim();
+      if (!name) return this.showMsg('Bone name required');
+      if (this.bones.some(b => b.name === name)) return this.showMsg('Duplicate bone name');
+      const bone = {
+        name,
+        length: 50,
+        rotation: 0,
+        x: 0,
+        y: 0,
+        color: this.color1
+      };
+      this.bones.push(bone);
+      this.selectedBone = bone;
+      nameInput.value = '';
+      this.renderBoneList();
+      this.renderPreview();
+      this.renderStats();
+      this.showMsg('Bone added');
+    };
+
+    boneList.onclick = (e) => {
+      const target = e.target;
+      if (target.tagName === 'LI') {
+        const name = target.dataset.name;
+        this.selectedBone = this.bones.find(b => b.name === name) || null;
+        this.updateSliders();
+        this.renderBoneList();
+        this.renderPreview();
+      }
+    };
+
+    deleteBtn.onclick = () => {
+      if (!this.selectedBone) return this.showMsg('No bone selected');
+      this.bones = this.bones.filter(b => b !== this.selectedBone);
+      this.selectedBone = null;
+      this.renderBoneList();
+      this.renderPreview();
+      this.renderStats();
+      this.showMsg('Bone deleted');
+    };
+
+    lengthSlider.oninput = () => {
+      if (this.selectedBone) {
+        this.selectedBone.length = +lengthSlider.value;
+        this.renderPreview();
+        this.renderStats();
+        this.updateSliders();
+      }
+    };
+    rotationSlider.oninput = () => {
+      if (this.selectedBone) {
+        this.selectedBone.rotation = +rotationSlider.value;
+        this.renderPreview();
+        this.renderStats();
+        this.updateSliders();
+      }
+    };
+    xSlider.oninput = () => {
+      if (this.selectedBone) {
+        this.selectedBone.x = +xSlider.value;
+        this.renderPreview();
+        this.renderStats();
+        this.updateSliders();
+      }
+    };
+    ySlider.oninput = () => {
+      if (this.selectedBone) {
+        this.selectedBone.y = +ySlider.value;
+        this.renderPreview();
+        this.renderStats();
+        this.updateSliders();
+      }
+    };
+
+    color1Input.oninput = () => {
+      this.color1 = color1Input.value;
+      if (this.selectedBone) this.selectedBone.color = this.color1;
+      this.renderPreview();
+    };
+    color2Input.oninput = () => {
+      this.color2 = color2Input.value;
+      this.renderPreview();
+    };
+
+    saveBtn.onclick = () => {
+      const data = JSON.stringify(this.bones, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'character.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      this.showMsg('Character saved');
+    };
+    loadBtn.onclick = () => loadInput.click();
+    loadInput.onchange = () => {
+      const file = loadInput.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const arr = JSON.parse(reader.result);
+          if (!Array.isArray(arr)) throw new Error('Invalid format');
+          this.bones = arr;
+          this.selectedBone = null;
+          this.renderBoneList();
+          this.renderPreview();
+          this.renderStats();
+          this.showMsg('Character loaded');
+        } catch {
+          this.showMsg('Invalid file');
+        }
+      };
+      reader.readAsText(file);
+    };
+    resetBtn.onclick = () => {
+      this.bones = [];
+      this.selectedBone = null;
+      this.renderBoneList();
+      this.renderPreview();
+      this.renderStats();
+      this.showMsg('Character reset');
+    };
+  }
+
+  updateSliders() {
+    const bone = this.selectedBone;
+    document.getElementById('boneLengthSlider').value = bone ? String(bone.length) : '50';
+    document.getElementById('boneRotationSlider').value = bone ? String(bone.rotation) : '0';
+    document.getElementById('boneXSlider').value = bone ? String(bone.x) : '0';
+    document.getElementById('boneYSlider').value = bone ? String(bone.y) : '0';
+    document.getElementById('boneLengthValue').textContent = bone ? String(bone.length) : '50';
+    document.getElementById('boneRotationValue').textContent = bone ? `${bone.rotation}°` : '0°';
+    document.getElementById('boneXValue').textContent = bone ? String(bone.x) : '0';
+    document.getElementById('boneYValue').textContent = bone ? String(bone.y) : '0';
+  }
+
+  renderBoneList() {
+    const ul = document.getElementById('boneList');
+    ul.innerHTML = '';
+    for (const bone of this.bones) {
+      const li = document.createElement('li');
+      li.className = 'bone-list-item' + (bone === this.selectedBone ? ' selected' : '');
+      li.textContent = bone.name;
+      li.dataset.name = bone.name;
+      ul.appendChild(li);
+    }
+    this.updateSliders();
+  }
+
+  renderPreview() {
+    const canvas = document.getElementById('characterCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.parentElement?.clientWidth || 400;
+    canvas.height = canvas.parentElement?.clientHeight || 400;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const bone of this.bones) {
+      ctx.save();
+      ctx.translate(canvas.width / 2 + bone.x, canvas.height / 2 + bone.y);
+      ctx.rotate((bone.rotation * Math.PI) / 180);
+      ctx.strokeStyle = bone.color;
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(bone.length, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  renderStats() {
+    const el = document.getElementById('stats-explanation');
+    el.textContent = `Total bones: ${this.bones.length}`;
+  }
+
+  showMsg(msg) {
+    const box = document.getElementById('messageBox');
+    box.textContent = msg;
+    box.classList.add('show');
+    setTimeout(() => box.classList.remove('show'), 1500);
+  }
+}
+
+// Initialize on DOMContentLoaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => new SkeletonEditor());
+} else {
+  new SkeletonEditor();
+}
+  </script>
+</body>
+</html>

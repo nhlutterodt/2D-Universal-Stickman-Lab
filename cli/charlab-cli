@@ -1,0 +1,4 @@
+#!/usr/bin/env -S deno run --allow-read --allow-write --allow-env
+import './convert.ts';
+import './migrate.ts';
+import './bundle.ts';

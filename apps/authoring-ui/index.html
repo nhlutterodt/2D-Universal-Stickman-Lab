@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2D Universal Stickman Lab - Character Creator</title>
+  <meta name="description" content="Advanced 2D stickman character creator with real-time editing, undo/redo, and export capabilities.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='16' fill='%234f46e5'/><text x='16' y='22' font-size='16' text-anchor='middle' fill='white'>2D</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="style.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <span>2D Universal Stickman Lab</span>
+      <div class="button-group">
+        <button id="undoBtn" class="button button-secondary" title="Undo last action">
+          <span>↶</span> Undo
+        </button>
+        <button id="redoBtn" class="button button-secondary" title="Redo last undone action">
+          <span>↷</span> Redo
+        </button>
+        <button id="saveCharacterBtn" class="button button-secondary" title="Save character as JSON">
+          <span>💾</span> Save
+        </button>
+        <button id="loadCharacterBtn" class="button button-secondary" title="Load character from JSON">
+          <span>📁</span> Load
+        </button>
+        <div style="position: relative;">
+          <button id="exportBtn" class="button button-secondary" title="Export options">
+            <span>📤</span> Export ▼
+          </button>
+          <div id="exportOptions" class="export-options">
+            <div class="export-option" onclick="editor.exportAsPNG()">Export as PNG</div>
+            <div class="export-option" onclick="editor.exportAsSVG()">Export as SVG</div>
+            <div class="export-option" onclick="editor.exportAsGIF()">Export as Animation</div>
+          </div>
+        </div>
+        <button id="resetCharacterBtn" class="button button-secondary" title="Reset character">
+          <span>🔄</span> Reset
+        </button>
+        <button id="helpBtn" class="button button-secondary" title="Show keyboard shortcuts">
+          <span>❓</span> Help
+        </button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <div class="toolbar-section">
+        <label>View:</label>
+        <button id="zoomInBtn" class="button button-secondary">🔍+</button>
+        <button id="zoomOutBtn" class="button button-secondary">🔍-</button>
+        <button id="resetZoomBtn" class="button button-secondary">⌂</button>
+      </div>
+      <div class="toolbar-divider"></div>
+      <div class="toolbar-section">
+        <label>Grid:</label>
+        <input type="checkbox" id="showGridToggle" checked>
+        <label for="showGridToggle">Show Grid</label>
+      </div>
+      <div class="toolbar-divider"></div>
+      <div class="toolbar-section">
+        <label>Snap:</label>
+        <input type="checkbox" id="snapToGridToggle">
+        <label for="snapToGridToggle">Snap to Grid</label>
+      </div>
+      <div class="toolbar-divider"></div>
+      <div class="toolbar-section">
+        <label>Animation:</label>
+        <button id="playAnimBtn" class="button button-secondary">▶️ Play</button>
+        <button id="stopAnimBtn" class="button button-secondary">⏹️ Stop</button>
+      </div>
+    </div>
+    <input type="file" id="loadCharacterInput" accept=".json" aria-label="Load Character File">
+    <div class="main-content">
+      <div class="canvas-container">
+        <canvas id="characterCanvas" aria-label="Character Preview Canvas"></canvas>
+        <div class="canvas-overlay">
+          <div><strong>Zoom:</strong> <span id="zoomLevel">100%</span></div>
+          <div><strong>Bones:</strong> <span id="boneCount">0</span></div>
+          <div><strong>Selected:</strong> <span id="selectedBoneName">None</span></div>
+        </div>
+        <div id="shortcutHelp" class="shortcut-help">
+          <div><strong>Keyboard Shortcuts:</strong></div>
+          <div><kbd>Ctrl+Z</kbd> Undo</div>
+          <div><kbd>Ctrl+Y</kbd> Redo</div>
+          <div><kbd>Ctrl+S</kbd> Save</div>
+          <div><kbd>Del</kbd> Delete Bone</div>
+          <div><kbd>Space</kbd> Play/Stop</div>
+          <div><kbd>+/-</kbd> Zoom In/Out</div>
+          <div><kbd>R</kbd> Reset View</div>
+          <div><kbd>G</kbd> Toggle Grid</div>
+          <div><kbd>?</kbd> Toggle Help</div>
+        </div>
+        <output id="messageBox" class="message-box" aria-live="polite"></output>
+      </div>
+      <div class="controls">
+        <div class="control-group">
+          <label for="boneNameInput">Bone Name</label>
+          <div class="form-row">
+            <div>
+              <input type="text" id="boneNameInput" class="input-field" placeholder="e.g., upperArm" aria-label="Bone Name">
+            </div>
+            <button id="addBoneBtn" class="button button-primary">Add Bone</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <label for="boneList">Bones</label>
+          <ul id="boneList" class="bone-list" aria-label="Bone List">
+            <!-- Bone items will be injected here by JS -->
+          </ul>
+        </div>
+        <div class="control-group">
+          <fieldset>
+            <legend>Selected Bone Properties</legend>
+            <div class="sliders">
+              <div class="slider-group">
+                <label for="boneLengthSlider">Length:</label>
+                <input type="range" id="boneLengthSlider" min="10" max="150" value="50" title="Bone Length" aria-label="Bone Length">
+                <span id="boneLengthValue">50</span>
+              </div>              <div class="slider-group">
+                <label for="boneRotationSlider">Rotation:</label>
+                <input type="range" id="boneRotationSlider" min="-180" max="180" value="0" title="Bone Rotation" aria-label="Bone Rotation">
+                <span id="boneRotationValue">0°</span>
+              </div>
+              <div class="slider-group">
+                <label for="boneXSlider">X Pos:</label>
+                <input type="range" id="boneXSlider" min="-300" max="300" value="0" title="Bone X Position" aria-label="Bone X Position">
+                <span id="boneXValue">0</span>
+              </div>
+              <div class="slider-group">
+                <label for="boneYSlider">Y Pos:</label>
+                <input type="range" id="boneYSlider" min="-300" max="300" value="0" title="Bone Y Position" aria-label="Bone Y Position">
+                <span id="boneYValue">0</span>
+              </div>
+            </div>
+          </fieldset>
+          <button id="deleteBoneBtn" class="button button-secondary">Delete Selected Bone</button>
+        </div>
+        <div class="control-group color-selection">
+          <label for="color1">Primary Color:</label>
+          <input type="color" id="color1" name="color1" value="#ff0000" title="Choose primary color" aria-label="Primary Color">
+          <label for="color2">Secondary Color:</label>
+          <input type="color" id="color2" name="color2" value="#00ffff" title="Choose secondary color" aria-label="Secondary Color">
+        </div>
+        <div class="preview">
+          <h2>Character Preview</h2>
+          <div id="preview-limbs" aria-label="Character Limbs Preview"></div>
+        </div>
+        <div class="stats">
+          <h2>Character Stats</h2>
+          <p id="stats-explanation"></p>
+          <p><strong>Performance:</strong> <span id="performance-info">Optimized rendering</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+// Simple Vector2 class for position management
+class Vector2 {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+class ImprovedSkeletonEditor {
+  constructor() {
+    // Initialize with improved architecture
+    const initialState = {
+      bones: new Map(),
+      selectedBoneId: null,
+      metadata: {
+        version: '2.0',
+        created: Date.now(),
+        modified: Date.now()
+      }
+    };
+    this.history = new History(initialState);
+    this.domCache = new Map();
+    this.renderScheduled = false;
+    this.color1 = '#ff0000';
+    this.color2 = '#00ffff';
+    this.nextBoneId = 1;
+    
+    // New properties for enhanced features
+    this.zoom = 1.0;
+    this.panX = 0;
+    this.panY = 0;
+    this.showGrid = true;
+    this.snapToGrid = false;
+    this.gridSize = 20;
+    this.isAnimating = false;
+    this.animationFrame = 0;
+    this.animationSpeed = 0.05;
+    
+    this.initUI();
+    this.renderBoneList();
+    this.scheduleRender();
+    this.renderStats();
+    this.updateButtons();
+    this.updateCanvasOverlay();
+  }
+
+  // DOM caching for better performance
+  getElement(id) {
+    if (!this.domCache.has(id)) {
+      const element = document.getElementById(id);
+      if (element) {
+        this.domCache.set(id, element);
+      }
+    }
+    return this.domCache.get(id) || null;
+  }
+
+  getCurrentState() {
+    return this.history.current();
+  }
+
+  saveState(newState) {
+    newState.metadata = {
+      ...newState.metadata,
+      modified: Date.now()
+    };
+    this.history.push(newState);
+    this.updateButtons();
+  }
+
+  updateButtons() {
+    const undoBtn = this.getElement('undoBtn');
+    const redoBtn = this.getElement('redoBtn');
+    
+    if (undoBtn) {
+      undoBtn.disabled = !this.history.canUndo();
+      undoBtn.style.opacity = this.history.canUndo() ? '1' : '0.5';
+    }
+    
+    if (redoBtn) {
+      redoBtn.disabled = !this.history.canRedo();
+      redoBtn.style.opacity = this.history.canRedo() ? '1' : '0.5';
+    }
+  }
+
+  // Optimized rendering with requestAnimationFrame
+  scheduleRender() {
+    if (!this.renderScheduled) {
+      this.renderScheduled = true;
+      requestAnimationFrame(() => {
+        this.renderPreview();
+        this.renderScheduled = false;
+      });
+    }
+  }
+
+  // Throttled input handler for better performance
+  createThrottledInputHandler(handler, delay = 16) {
+    let timeoutId = null;
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(handler, delay);
+    };
+  }
+
+  // Enhanced validation with detailed error messages
+  validateBoneName(name) {
+    if (!name.trim()) return 'Bone name required';
+    if (name.length < 2) return 'Bone name too short (min 2 characters)';
+    if (name.length > 20) return 'Bone name too long (max 20 characters)';
+    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name)) return 'Invalid characters (use letters, numbers, underscore)';
+    
+    const state = this.getCurrentState();
+    const existingBone = Array.from(state.bones.values()).find(b => b.name === name);
+    if (existingBone) return 'Duplicate bone name';
+    return null;
+  }
+
+  getSelectedBone() {
+    const state = this.getCurrentState();
+    return state.selectedBoneId ? state.bones.get(state.selectedBoneId) || null : null;
+  }
+
+  addBone(name) {
+    const validation = this.validateBoneName(name);
+    if (validation) {
+      this.showMsg(validation, 'error');
+      return;
+    }
+
+    const currentState = this.getCurrentState();
+    const newBone = {
+      id: this.nextBoneId++,
+      name,
+      length: 50,
+      rotation: 0,
+      position: new Vector2(0, 0),
+      color: this.color1,
+      visible: true,
+      parentId: null, // For hierarchical support
+      children: []
+    };
+
+    const newBones = new Map(currentState.bones);
+    newBones.set(newBone.id, newBone);
+
+    const newState = {
+      bones: newBones,
+      selectedBoneId: newBone.id,
+      metadata: currentState.metadata
+    };
+
+    this.saveState(newState);
+    this.renderBoneList();
+    this.scheduleRender();
+    this.renderStats();
+    this.showMsg(`Bone "${name}" added successfully`, 'success');
+    console.debug('addBone:', { id: newBone.id, bone: newBone });
+    console.debug('Current bones after add:', Array.from(this.getCurrentState().bones.entries()));
+  }
+
+  deleteBone() {
+    const selectedBone = this.getSelectedBone();
+    if (!selectedBone) {
+      this.showMsg('No bone selected', 'warning');
+      return;
+    }
+
+    const currentState = this.getCurrentState();
+    const newBones = new Map(currentState.bones);
+    
+    // Remove children relationships
+    for (const bone of newBones.values()) {
+      if (bone.parentId === selectedBone.id) {
+        bone.parentId = null;
+      }
+    }
+    
+    newBones.delete(selectedBone.id);
+
+    const newState = {
+      bones: newBones,
+      selectedBoneId: null,
+      metadata: currentState.metadata
+    };
+
+    this.saveState(newState);
+    this.renderBoneList();
+    this.scheduleRender();
+    this.renderStats();
+    this.showMsg(`Bone "${selectedBone.name}" deleted`, 'success');
+  }
+
+  updateBoneProperty(boneId, property, value) {
+    const currentState = this.getCurrentState();
+    const bone = currentState.bones.get(boneId);
+    if (!bone) return;
+
+    const newBones = new Map(currentState.bones);
+    const updatedBone = { ...bone, [property]: value };
+    newBones.set(boneId, updatedBone);
+
+    const newState = {
+      bones: newBones,
+      selectedBoneId: currentState.selectedBoneId,
+      metadata: currentState.metadata
+    };
+
+    this.saveState(newState);
+    this.scheduleRender();
+    this.renderStats();
+  }
+
+  selectBone(boneId) {
+    const currentState = this.getCurrentState();
+    const newState = {
+      bones: currentState.bones,
+      selectedBoneId: boneId,
+      metadata: currentState.metadata
+    };
+
+    this.saveState(newState);
+    this.updateSliders();
+    this.renderBoneList();
+    this.scheduleRender();
+  }
+
+  undo() {
+    if (!this.history.canUndo()) return;
+    
+    const previousState = this.history.undo();
+    this.renderBoneList();
+    this.scheduleRender();
+    this.renderStats();
+    this.updateSliders();
+    this.updateButtons();
+    this.showMsg('Action undone', 'info');
+  }
+
+  redo() {
+    if (!this.history.canRedo()) return;
+    
+    const nextState = this.history.redo();
+    this.renderBoneList();
+    this.scheduleRender();
+    this.renderStats();
+    this.updateSliders();
+    this.updateButtons();
+    this.showMsg('Action redone', 'info');
+  }
+
+  // Enhanced zoom and pan functionality
+  setZoom(newZoom) {
+    this.zoom = Math.max(0.1, Math.min(5.0, newZoom));
+    this.scheduleRender();
+    this.updateCanvasOverlay();
+  }
+
+  zoomIn() {
+    this.setZoom(this.zoom * 1.2);
+  }
+
+  zoomOut() {
+    this.setZoom(this.zoom / 1.2);
+  }
+
+  resetZoom() {
+    this.zoom = 1.0;
+    this.panX = 0;
+    this.panY = 0;
+    this.scheduleRender();
+    this.updateCanvasOverlay();
+  }
+
+  // Export functionality
+  exportAsPNG() {
+    const canvas = this.getElement('characterCanvas');
+    if (!canvas) return;
+    
+    const link = document.createElement('a');
+    link.download = `stickman-${new Date().toISOString().slice(0, 10)}.png`;
+    link.href = canvas.toDataURL();
+    link.click();
+    this.showMsg('Character exported as PNG', 'success');
+  }
+
+  exportAsSVG() {
+    const state = this.getCurrentState();
+    let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+      <rect width="400" height="400" fill="white"/>`;
+    
+    for (const bone of state.bones.values()) {
+      if (!bone.visible) continue;
+      const x1 = 200 + bone.position.x;
+      const y1 = 200 + bone.position.y;
+      const angle = (bone.rotation * Math.PI) / 180;
+      const x2 = x1 + Math.cos(angle) * bone.length;
+      const y2 = y1 + Math.sin(angle) * bone.length;
+      
+      svgContent += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" 
+        stroke="${bone.color}" stroke-width="8" stroke-linecap="round"/>
+        <circle cx="${x1}" cy="${y1}" r="4" fill="${bone.color}"/>
+        <circle cx="${x2}" cy="${y2}" r="3" fill="${bone.color}"/>`;
+    }
+    
+    svgContent += '</svg>';
+    
+    const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `stickman-${new Date().toISOString().slice(0, 10)}.svg`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+    this.showMsg('Character exported as SVG', 'success');
+  }
+
+  exportAsGIF() {
+    this.showMsg('GIF export feature coming soon!', 'info');
+    // TODO: Implement GIF export with animation frames
+  }
+
+  // Animation functionality
+  startAnimation() {
+    if (this.isAnimating) return;
+    this.isAnimating = true;
+    this.animateLoop();
+    this.showMsg('Animation started', 'info');
+  }
+
+  stopAnimation() {
+    this.isAnimating = false;
+    this.animationFrame = 0;
+    this.scheduleRender();
+    this.showMsg('Animation stopped', 'info');
+  }
+
+  animateLoop() {
+    if (!this.isAnimating) return;
+    
+    this.animationFrame += this.animationSpeed;
+    
+    // Simple wave animation for all bones
+    const state = this.getCurrentState();
+    for (const bone of state.bones.values()) {
+      bone.animationOffset = Math.sin(this.animationFrame + bone.id) * 10;
+    }
+    
+    this.scheduleRender();
+    requestAnimationFrame(() => this.animateLoop());
+  }
+
+  // Update canvas overlay information
+  updateCanvasOverlay() {
+    const zoomLevel = this.getElement('zoomLevel');
+    const boneCount = this.getElement('boneCount');
+    const selectedBoneName = this.getElement('selectedBoneName');
+    
+    if (zoomLevel) zoomLevel.textContent = `${Math.round(this.zoom * 100)}%`;
+    if (boneCount) boneCount.textContent = this.getCurrentState().bones.size;
+    
+    const selectedBone = this.getSelectedBone();
+    if (selectedBoneName) {
+      selectedBoneName.textContent = selectedBone ? selectedBone.name : 'None';
+    }
+  }
+
+  // Toggle grid visibility
+  toggleGrid() {
+    this.showGrid = !this.showGrid;
+    this.scheduleRender();
+    const gridToggle = this.getElement('showGridToggle');
+    if (gridToggle) gridToggle.checked = this.showGrid;
+  }
+
+  // Toggle snap to grid
+  toggleSnapToGrid() {
+    this.snapToGrid = !this.snapToGrid;
+    const snapToggle = this.getElement('snapToGridToggle');
+    if (snapToggle) snapToggle.checked = this.snapToGrid;
+    this.showMsg(`Snap to grid ${this.snapToGrid ? 'enabled' : 'disabled'}`, 'info');
+  }
+
+  // Show/hide keyboard shortcuts
+  toggleShortcutHelp() {
+    const help = this.getElement('shortcutHelp');
+    if (help) {
+      help.classList.toggle('show');
+    }
+  }
+
+  // Toggle export options dropdown
+  toggleExportOptions() {
+    const options = this.getElement('exportOptions');
+    if (options) {
+      options.classList.toggle('show');
+    }
+  }
+
+  initUI() {
+    this.setupBasicControls();
+    this.setupSliders();
+    this.setupColorControls();
+    this.setupFileControls();
+    this.setupToolbarControls();
+    this.setupKeyboardShortcuts();
+  }
+
+  setupBasicControls() {
+    const addBtn = this.getElement('addBoneBtn');
+    const nameInput = this.getElement('boneNameInput');
+    const boneList = this.getElement('boneList');
+    const deleteBtn = this.getElement('deleteBoneBtn');
+    const undoBtn = this.getElement('undoBtn');
+    const redoBtn = this.getElement('redoBtn');
+
+    if (addBtn && nameInput) {
+      addBtn.onclick = () => {
+        const name = nameInput.value.trim();
+        this.addBone(name);
+        nameInput.value = '';
+      };
+
+      nameInput.onkeypress = (e) => {
+        if (e.key === 'Enter') {
+          addBtn.click();
+        }
+      };
+    }
+
+    if (boneList) {
+      boneList.onclick = (e) => {
+        const target = e.target;
+        if (target.tagName === 'LI') {
+          const boneId = parseInt(target.dataset.boneId);
+          if (boneId) {
+            this.selectBone(boneId);
+          }
+        }
+      };
+    }
+
+    if (deleteBtn) deleteBtn.onclick = () => this.deleteBone();
+    if (undoBtn) undoBtn.onclick = () => this.undo();
+    if (redoBtn) redoBtn.onclick = () => this.redo();
+  }
+
+  setupSliders() {
+    const lengthSlider = this.getElement('boneLengthSlider');
+    const rotationSlider = this.getElement('boneRotationSlider');
+    const xSlider = this.getElement('boneXSlider');
+    const ySlider = this.getElement('boneYSlider');
+
+    if (lengthSlider) {
+      const throttledLengthHandler = this.createThrottledInputHandler(() => {
+        const selectedBone = this.getSelectedBone();
+        if (selectedBone) {
+          this.updateBoneProperty(selectedBone.id, 'length', +lengthSlider.value);
+          this.updateSliders();
+        }
+      });
+      lengthSlider.oninput = throttledLengthHandler;
+    }
+
+    if (rotationSlider) {
+      const throttledRotationHandler = this.createThrottledInputHandler(() => {
+        const selectedBone = this.getSelectedBone();
+        if (selectedBone) {
+          this.updateBoneProperty(selectedBone.id, 'rotation', +rotationSlider.value);
+          this.updateSliders();
+        }
+      });
+      rotationSlider.oninput = throttledRotationHandler;
+    }
+
+    if (xSlider) {
+      const throttledXHandler = this.createThrottledInputHandler(() => {
+        const selectedBone = this.getSelectedBone();
+        if (selectedBone) {
+          const newPosition = new Vector2(+xSlider.value, selectedBone.position.y);
+          this.updateBoneProperty(selectedBone.id, 'position', newPosition);
+          this.updateSliders();
+        }
+      });
+      xSlider.oninput = throttledXHandler;
+    }
+
+    if (ySlider) {
+      const throttledYHandler = this.createThrottledInputHandler(() => {
+        const selectedBone = this.getSelectedBone();
+        if (selectedBone) {
+          const newPosition = new Vector2(selectedBone.position.x, +ySlider.value);
+          this.updateBoneProperty(selectedBone.id, 'position', newPosition);
+          this.updateSliders();
+        }
+      });
+      ySlider.oninput = throttledYHandler;
+    }
+  }
+
+  setupColorControls() {
+    const color1Input = this.getElement('color1');
+    const color2Input = this.getElement('color2');
+
+    if (color1Input) {
+      color1Input.oninput = () => {
+        this.color1 = color1Input.value;
+        const selectedBone = this.getSelectedBone();
+        if (selectedBone) {
+          this.updateBoneProperty(selectedBone.id, 'color', this.color1);
+        }
+      };
+    }
+
+    if (color2Input) {
+      color2Input.oninput = () => {
+        this.color2 = color2Input.value;
+        this.scheduleRender();
+      };
+    }
+  }
+
+  setupFileControls() {
+    const saveBtn = this.getElement('saveCharacterBtn');
+    const loadBtn = this.getElement('loadCharacterBtn');
+    const loadInput = this.getElement('loadCharacterInput');
+    const resetBtn = this.getElement('resetCharacterBtn');
+
+    if (saveBtn) saveBtn.onclick = () => this.saveCharacter();
+    if (loadBtn && loadInput) {
+      loadBtn.onclick = () => loadInput.click();
+      loadInput.onchange = () => this.loadCharacter(loadInput);
+    }
+    if (resetBtn) resetBtn.onclick = () => this.resetCharacter();
+  }
+
+  setupToolbarControls() {
+    const zoomInBtn = this.getElement('zoomInBtn');
+    const zoomOutBtn = this.getElement('zoomOutBtn');
+    const resetZoomBtn = this.getElement('resetZoomBtn');
+    const gridToggle = this.getElement('showGridToggle');
+    const snapToggle = this.getElement('snapToGridToggle');
+    const playBtn = this.getElement('playAnimBtn');
+    const stopBtn = this.getElement('stopAnimBtn');
+    const exportBtn = this.getElement('exportBtn');
+    const helpBtn = this.getElement('helpBtn');
+
+    if (zoomInBtn) zoomInBtn.onclick = () => this.zoomIn();
+    if (zoomOutBtn) zoomOutBtn.onclick = () => this.zoomOut();
+    if (resetZoomBtn) resetZoomBtn.onclick = () => this.resetZoom();
+    if (gridToggle) gridToggle.onchange = () => this.toggleGrid();
+    if (snapToggle) snapToggle.onchange = () => this.toggleSnapToGrid();
+    if (playBtn) playBtn.onclick = () => this.startAnimation();
+    if (stopBtn) stopBtn.onclick = () => this.stopAnimation();
+    if (exportBtn) exportBtn.onclick = () => this.toggleExportOptions();
+    if (helpBtn) helpBtn.onclick = () => this.toggleShortcutHelp();
+  }
+
+  setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+      // Skip handling when typing in input fields
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+        return;
+      }
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          this.undo();
+        } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+          e.preventDefault();
+          this.redo();
+        } else if (e.key === 's') {
+          e.preventDefault();
+          this.saveCharacter();
+        }
+      } else {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          this.deleteBone();
+        } else if (e.key === ' ') {
+          e.preventDefault();
+          if (this.isAnimating) {
+            this.stopAnimation();
+          } else {
+            this.startAnimation();
+          }
+        } else if (e.key === '+' || e.key === '=') {
+          e.preventDefault();
+          this.zoomIn();
+        } else if (e.key === '-') {
+          e.preventDefault();
+          this.zoomOut();
+        } else if (e.key.toLowerCase() === 'r') {
+          e.preventDefault();
+          this.resetZoom();
+        } else if (e.key.toLowerCase() === 'g') {
+          e.preventDefault();
+          this.toggleGrid();
+        } else if (e.key === '?') {
+          e.preventDefault();
+          this.toggleShortcutHelp();
+        }
+      }
+    });
+  }
+
+  updateSliders() {
+    const bone = this.getSelectedBone();
+    
+    const lengthSlider = this.getElement('boneLengthSlider');
+    const rotationSlider = this.getElement('boneRotationSlider');
+    const xSlider = this.getElement('boneXSlider');
+    const ySlider = this.getElement('boneYSlider');
+    
+    const lengthValue = this.getElement('boneLengthValue');
+    const rotationValue = this.getElement('boneRotationValue');
+    const xValue = this.getElement('boneXValue');
+    const yValue = this.getElement('boneYValue');
+
+    if (lengthSlider) lengthSlider.value = bone ? String(bone.length) : '50';
+    if (rotationSlider) rotationSlider.value = bone ? String(bone.rotation) : '0';
+    if (xSlider) xSlider.value = bone ? String(bone.position.x) : '0';
+    if (ySlider) ySlider.value = bone ? String(bone.position.y) : '0';
+    
+    if (lengthValue) lengthValue.textContent = bone ? String(bone.length) : '50';
+    if (rotationValue) rotationValue.textContent = bone ? `${bone.rotation}°` : '0°';
+    if (xValue) xValue.textContent = bone ? String(bone.position.x) : '0';
+    if (yValue) yValue.textContent = bone ? String(bone.position.y) : '0';
+  }
+
+  renderBoneList() {
+    const ul = this.getElement('boneList');
+    if (!ul) return;
+
+    const state = this.getCurrentState();
+    ul.innerHTML = '';
+    
+    if (state.bones.size === 0) {
+      const li = document.createElement('li');
+      li.className = 'bone-list-item';
+      li.textContent = 'No bones created yet';
+      li.style.fontStyle = 'italic';
+      li.style.color = '#94a3b8';
+      ul.appendChild(li);
+      this.updateSliders();
+      return;
+    }
+    
+    for (const bone of state.bones.values()) {
+      const li = document.createElement('li');
+      li.className = 'bone-list-item' + (bone.id === state.selectedBoneId ? ' selected' : '');
+      li.textContent = bone.name;
+      li.dataset.boneId = bone.id.toString();
+      li.title = `Length: ${bone.length}, Rotation: ${bone.rotation}°`;
+      ul.appendChild(li);
+    }
+    this.updateSliders();
+  }
+
+  renderPreview() {
+    console.debug('renderPreview: bones=', Array.from(this.getCurrentState().bones.entries()));
+    const canvas = this.getElement('characterCanvas');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = canvas.parentElement?.clientWidth || 400;
+    canvas.height = canvas.parentElement?.clientHeight || 400;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const state = this.getCurrentState();
+    const centerX = canvas.width / 2 + this.panX;
+    const centerY = canvas.height / 2 + this.panY;
+
+    // Apply zoom transformation
+    ctx.save();
+    ctx.scale(this.zoom, this.zoom);
+
+    // Draw grid if enabled
+    if (this.showGrid) {
+      this.drawGrid(ctx, canvas.width / this.zoom, canvas.height / this.zoom, centerX / this.zoom, centerY / this.zoom);
+    }
+
+    // Enhanced rendering with animation support
+    for (const bone of state.bones.values()) {
+      if (!bone.visible) continue;
+
+      ctx.save();
+      
+      let worldX = centerX / this.zoom + bone.position.x;
+      let worldY = centerY / this.zoom + bone.position.y;
+
+      // Apply animation offset if animating
+      if (this.isAnimating && bone.animationOffset !== undefined) {
+        worldY += bone.animationOffset;
+      }
+
+      // Highlight selected bone with glow effect
+      if (bone.id === state.selectedBoneId) {
+        ctx.shadowColor = '#3b82f6';
+        ctx.shadowBlur = 15;
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 12;
+        ctx.globalAlpha = 0.4;
+        ctx.translate(worldX, worldY);
+        ctx.rotate((bone.rotation * Math.PI) / 180);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(bone.length, 0);
+        ctx.stroke();
+        ctx.restore();
+        ctx.save();
+      }
+
+      // Reset shadow for main bone rendering
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.translate(worldX, worldY);
+      ctx.rotate((bone.rotation * Math.PI) / 180);
+      ctx.strokeStyle = bone.color;
+      ctx.lineWidth = 8;
+      ctx.globalAlpha = 1;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(bone.length, 0);
+      ctx.stroke();
+
+      // Draw joint at bone origin with gradient
+      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 6);
+      gradient.addColorStop(0, bone.color);
+      gradient.addColorStop(1, this.darkenColor(bone.color, 0.3));
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, 5, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Draw end joint
+      ctx.fillStyle = bone.color;
+      ctx.beginPath();
+      ctx.arc(bone.length, 0, 4, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Add bone name label if selected
+      if (bone.id === state.selectedBoneId) {
+        ctx.fillStyle = '#1f2937';
+        ctx.font = 'bold 12px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(bone.name, bone.length / 2, -15);
+      }
+
+      ctx.restore();
+    }
+
+    ctx.restore();
+    this.updateCanvasOverlay();
+  }
+
+  // Helper method to darken colors
+  darkenColor(color, factor) {
+    const hex = color.replace('#', '');
+    const r = Math.max(0, parseInt(hex.substr(0, 2), 16) * (1 - factor));
+    const g = Math.max(0, parseInt(hex.substr(2, 2), 16) * (1 - factor));
+    const b = Math.max(0, parseInt(hex.substr(4, 2), 16) * (1 - factor));
+    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+  }
+
+  drawGrid(ctx, width, height, centerX, centerY) {
+    ctx.save();
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.3;
+
+    const gridSize = 20;
+
+    // Vertical lines
+    for (let x = centerX % gridSize; x < width; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+
+    // Horizontal lines
+    for (let y = centerY % gridSize; y < height; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+
+    // Center lines
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.5;
+
+    // Vertical center line
+    ctx.beginPath();
+    ctx.moveTo(centerX, 0);
+    ctx.lineTo(centerX, height);
+    ctx.stroke();
+
+    // Horizontal center line
+    ctx.beginPath();
+    ctx.moveTo(0, centerY);
+    ctx.lineTo(width, centerY);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  renderStats() {
+    const el = this.getElement('stats-explanation');
+    if (!el) return;
+
+    const state = this.getCurrentState();
+    const totalBones = state.bones.size;
+    const selectedBone = this.getSelectedBone();
+    
+    let statsText = `Total bones: ${totalBones}`;
+    if (selectedBone) {
+      statsText += ` | Selected: ${selectedBone.name}`;
+    }
+    statsText += ` | History: ${this.history.pointer + 1}/${this.history.buffer.length}`;
+    
+    el.textContent = statsText;
+
+    // Update performance info
+    const perfInfo = this.getElement('performance-info');
+    if (perfInfo) {
+      perfInfo.textContent = `DOM cached: ${this.domCache.size} elements, Throttled inputs, RAF rendering`;
+    }
+  }
+
+  saveCharacter() {
+    const state = this.getCurrentState();
+    const exportData = {
+      metadata: {
+        version: '2.0',
+        created: state.metadata.created,
+        modified: Date.now(),
+        totalBones: state.bones.size
+      },
+      bones: Array.from(state.bones.entries()).map(([id, bone]) => ({
+        ...bone,
+        id: id,
+        position: { x: bone.position.x, y: bone.position.y }
+      }))
+    };
+
+    const data = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `character-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    this.showMsg('Character saved successfully', 'success');
+  }
+
+  loadCharacter(input) {
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (!data.bones || !Array.isArray(data.bones)) {
+          throw new Error('Invalid format');
+        }
+
+        const newBones = new Map();
+        let maxId = 0;
+
+        for (const boneData of data.bones) {
+          const bone = {
+            id: boneData.id,
+            name: boneData.name,
+            length: boneData.length || 50,
+            rotation: boneData.rotation || 0,
+            position: new Vector2(
+              boneData.position?.x || 0, 
+              boneData.position?.y || 0
+            ),
+            color: boneData.color || this.color1,
+            visible: boneData.visible !== false,
+            parentId: boneData.parentId || null,
+            children: boneData.children || []
+          };
+          newBones.set(bone.id, bone);
+          maxId = Math.max(maxId, bone.id);
+        }
+
+        // Update nextBoneId to ensure new bones get unique IDs
+        this.nextBoneId = maxId + 1;
+
+        const newState = {
+          bones: newBones,
+          selectedBoneId: null,
+          metadata: {
+            version: data.metadata?.version || '1.0',
+            created: data.metadata?.created || Date.now(),
+            modified: Date.now()
+          }
+        };
+
+        this.history = new History(newState);
+        this.renderBoneList();
+        this.scheduleRender();
+        this.renderStats();
+        this.updateButtons();
+        this.showMsg(`Character loaded: ${data.bones.length} bones`, 'success');
+      } catch (error) {
+        this.showMsg('Invalid file format', 'error');
+        console.error('Load error:', error);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  resetCharacter() {
+    if (this.getCurrentState().bones.size > 0) {
+      if (!confirm('Are you sure you want to reset? All bones will be deleted.')) {
+        return;
+      }
+    }
+
+    const initialState = {
+      bones: new Map(),
+      selectedBoneId: null,
+      metadata: {
+        version: '2.0',
+        created: Date.now(),
+        modified: Date.now()
+      }
+    };
+    this.history = new History(initialState);
+    this.nextBoneId = 1;
+    this.renderBoneList();
+    this.scheduleRender();
+    this.renderStats();
+    this.updateButtons();
+    this.showMsg('Character reset', 'info');
+  }
+
+  showMsg(msg, type = 'info') {
+    const box = this.getElement('messageBox');
+    if (box) {
+      box.textContent = msg;
+      box.classList.remove('show');
+      
+      // Add type-specific styling
+      box.style.backgroundColor = {
+        'success': 'rgba(34, 197, 94, 0.9)',
+        'error': 'rgba(239, 68, 68, 0.9)',
+        'warning': 'rgba(245, 158, 11, 0.9)',
+        'info': 'rgba(0, 0, 0, 0.8)'
+      }[type] || 'rgba(0, 0, 0, 0.8)';
+      
+      requestAnimationFrame(() => {
+        box.classList.add('show');
+        setTimeout(() => box.classList.remove('show'), type === 'error' ? 3000 : 2000);
+      });
+    }
+  }
+}
+
+// History class for managing undo/redo state
+class History {
+  constructor(initial) {
+    this.buffer = [initial];
+    this.pointer = 0;
+    this.max = 50;
+  }
+
+  push(state) {
+    if (this.pointer < this.buffer.length - 1) {
+      this.buffer.splice(this.pointer + 1);
+    }
+    if (this.buffer.length === this.max) {
+      this.buffer.shift();
+      this.pointer--;
+    }
+    // Serialize state.bones Map into array entries for persistence
+    let serializable = state;
+    if (state.bones instanceof Map) {
+      serializable = {
+        ...state,
+        bones: Array.from(state.bones.entries())
+      };
+    }
+    // Deep clone via JSON to remove references
+    this.buffer.push(JSON.parse(JSON.stringify(serializable)));
+    this.pointer++;
+  }
+
+  undo() {
+    if (this.pointer > 0) this.pointer--;
+    return JSON.parse(JSON.stringify(this.buffer[this.pointer]));
+  }
+
+  redo() {
+    if (this.pointer < this.buffer.length - 1) this.pointer++;
+    return JSON.parse(JSON.stringify(this.buffer[this.pointer]));
+  }
+
+  current() {
+    const state = JSON.parse(JSON.stringify(this.buffer[this.pointer]));
+    // Reconstruct Map from serialized data
+    if (state.bones && typeof state.bones === 'object' && !state.bones.has) {
+      const bonesMap = new Map();
+      if (Array.isArray(state.bones)) {
+        // Handle array format: either [id, boneObject] pairs or bone objects
+        if (state.bones.length && Array.isArray(state.bones[0])) {
+          for (const [id, bone] of state.bones) {
+            bonesMap.set(id, bone);
+          }
+        } else {
+          for (const bone of state.bones) {
+            bonesMap.set(bone.id, bone);
+          }
+        }
+      } else {
+        // Handle object format
+        for (const [key, value] of Object.entries(state.bones)) {
+          bonesMap.set(parseInt(key), value);
+        }
+      }
+      state.bones = bonesMap;
+    }
+    return state;
+  }
+
+  canUndo() {
+    return this.pointer > 0;
+  }
+
+  canRedo() {
+    return this.pointer < this.buffer.length - 1;
+  }
+}
+
+// Initialize editor on DOMContentLoaded
+let editor;
+document.addEventListener('DOMContentLoaded', () => {
+  editor = new ImprovedSkeletonEditor();
+  window.editor = editor;
+});
+  </script>
+</body>
+</html>
