@@ -8,7 +8,6 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='16' fill='%234f46e5'/><text x='16' y='22' font-size='16' text-anchor='middle' fill='white'>2D</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <link href="style.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -96,7 +95,6 @@
         <output id="messageBox" class="message-box" aria-live="polite"></output>
       </div>
       <div class="controls">
-        <graph-pane id="graphPane"></graph-pane>
         <div class="control-group">
           <label for="boneNameInput">Bone Name</label>
           <div class="form-row">
@@ -158,7 +156,6 @@
     </div>
   </div>
   <script type="module" src="./src/tool-palette.js"></script>
-  <script type="module" src="./src/graph-pane.js"></script>
   <script>
     // Simple Vector2 class for position management
     class Vector2 {
@@ -180,10 +177,6 @@
             modified: Date.now()
           }
         };
-        // Graph data setup
-        this.startTime = Date.now();
-        this.dataSeries = { time: [], length: [], rotation: [], x: [], y: [] };
-        this.graphPane = null;
         this.history = new History(initialState);
         this.domCache = new Map();
         this.renderScheduled = false;
@@ -209,9 +202,6 @@
         this.renderStats();
         this.updateButtons();
         this.updateCanvasOverlay();
-        // Wire up graph export from pane
-        const gp = this.getElement('graphPane');
-        if (gp) { this.graphPane = gp; gp.addEventListener('exportgraph', () => this.exportGraphData()); }
       }
 
       // DOM caching for better performance
@@ -236,7 +226,6 @@
         };
         this.history.push(newState);
         this.updateButtons();
-        this.recordMetrics();
       }
 
       updateButtons() {
@@ -1215,36 +1204,6 @@
             setTimeout(() => box.classList.remove('show'), type === 'error' ? 3000 : 2000);
           });
         }
-      }
-      /** Record averaged bone metrics and push to graph */
-      recordMetrics() {
-          const t = (Date.now() - this.startTime) / 1000;
-          const state = this.getCurrentState();
-          let sumL = 0, sumR = 0, sumX = 0, sumY = 0;
-          state.bones.forEach(b => { sumL += b.length; sumR += b.rotation; sumX += b.position.x; sumY += b.position.y; });
-          const count = state.bones.size || 1;
-          const series = { length: sumL/count, rotation: sumR/count, x: sumX/count, y: sumY/count };
-          this.dataSeries.time.push(t);
-          this.dataSeries.length.push(series.length);
-          this.dataSeries.rotation.push(series.rotation);
-          this.dataSeries.x.push(series.x);
-          this.dataSeries.y.push(series.y);
-          if (this.graphPane) this.graphPane.updateData(t, series);
-      }
-      
-      /** Export collected graph data as JSON */
-      exportGraphData() {
-          const data = JSON.stringify(this.dataSeries, null, 2);
-          const blob = new Blob([data], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `graph-${new Date().toISOString().slice(0,10)}.json`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          this.showMsg('Graph data exported', 'success');
       }
     }
 

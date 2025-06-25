@@ -10,13 +10,13 @@ template.innerHTML = `
             position: absolute;
             top: 16px;
             left: 16px;
+            z-index: 200;
             display: flex;
             gap: 4px;
             background: var(--lab-pane-bg, #222);
             border-radius: 4px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.5);
             padding: 4px;
-            z-index: 100;
         }
         button {
             background: transparent;
