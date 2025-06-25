@@ -21,8 +21,8 @@ interface EditorState {
 }
 
 class SkeletonEditor {
-  private history: History<EditorState>;
-  private domCache: Map<string, HTMLElement> = new Map();
+  private readonly history: History<EditorState>;
+  private readonly domCache: Map<string, HTMLElement> = new Map();
   private renderScheduled = false;
   private color1 = '#ff0000';
   private color2 = '#00ffff';
@@ -178,7 +178,7 @@ class SkeletonEditor {
   }
 
   private undo(): void {
-    const previousState = this.history.undo();
+    this.history.undo();
     this.renderBoneList();
     this.scheduleRender();
     this.renderStats();
@@ -186,7 +186,7 @@ class SkeletonEditor {
   }
 
   private redo(): void {
-    const nextState = this.history.redo();
+    this.history.redo();
     this.renderBoneList();
     this.scheduleRender();
     this.renderStats();
@@ -237,7 +237,7 @@ class SkeletonEditor {
     if (lengthSlider) {
       const throttledLengthHandler = this.createThrottledInputHandler(() => {
         const selectedBone = this.getSelectedBone();
-        if (selectedBone && lengthSlider) {
+        if (selectedBone) {
           this.updateBoneProperty(selectedBone.id, 'length', +lengthSlider.value);
           this.updateSliders();
         }
@@ -248,7 +248,7 @@ class SkeletonEditor {
     if (rotationSlider) {
       const throttledRotationHandler = this.createThrottledInputHandler(() => {
         const selectedBone = this.getSelectedBone();
-        if (selectedBone && rotationSlider) {
+        if (selectedBone) {
           this.updateBoneProperty(selectedBone.id, 'rotation', +rotationSlider.value);
           this.updateSliders();
         }
@@ -259,7 +259,7 @@ class SkeletonEditor {
     if (xSlider) {
       const throttledXHandler = this.createThrottledInputHandler(() => {
         const selectedBone = this.getSelectedBone();
-        if (selectedBone && xSlider) {
+        if (selectedBone) {
           const newPosition = new Vector2(+xSlider.value, selectedBone.position.y);
           this.updateBoneProperty(selectedBone.id, 'position', newPosition);
           this.updateSliders();
@@ -271,7 +271,7 @@ class SkeletonEditor {
     if (ySlider) {
       const throttledYHandler = this.createThrottledInputHandler(() => {
         const selectedBone = this.getSelectedBone();
-        if (selectedBone && ySlider) {
+        if (selectedBone) {
           const newPosition = new Vector2(selectedBone.position.x, +ySlider.value);
           this.updateBoneProperty(selectedBone.id, 'position', newPosition);
           this.updateSliders();

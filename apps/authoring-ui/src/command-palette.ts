@@ -1,4 +1,5 @@
 import { t, onLocaleChange } from './i18n.js';
+
 /**
  * <command-palette> global command palette, Ctrl/⌘+K.
  * @lab-docgen
@@ -35,32 +36,81 @@ template.innerHTML = `
 export class CommandPalette extends HTMLElement {
   constructor() {
     super();
-    this.attachShadow({ mode: 'open' });
-    this.shadowRoot?.appendChild(template.content.cloneNode(true));
+    try {
+      const shadow = this.attachShadow({ mode: 'open' });
+      shadow.appendChild(template.content.cloneNode(true));
+    } catch (error) {
+      console.error('Error creating shadow DOM:', error);
+    }
     this.addEventListener('keydown', e => {
-      if (e.key === 'Escape') this.removeAttribute('open');
+      try {
+        if (e.key === 'Escape') {
+          this.removeAttribute('open');
+        }
+      } catch (error) {
+        console.error('Error handling keydown in CommandPalette:', error);
+      }
     });
-    onLocaleChange(() => this._update());
+    onLocaleChange(() => {
+      try {
+        this._update();
+      } catch (error) {
+        console.error('Error updating locale in CommandPalette:', error);
+      }
+    });
   }
+
   open() {
-    this.setAttribute('open', '');
-    const input = this.shadowRoot?.querySelector('input');
-    input?.focus();
+    try {
+      this.setAttribute('open', '');
+      const input = this.shadowRoot?.querySelector('input');
+      if (input) {
+        input.focus();
+      } else {
+        console.warn('No input element found in the command palette.');
+      }
+    } catch (error) {
+      console.error('Error in open():', error);
+    }
   }
+
   close() {
-    this.removeAttribute('open');
+    try {
+      this.removeAttribute('open');
+    } catch (error) {
+      console.error('Error in close():', error);
+    }
   }
+
   _update() {
-    const input = this.shadowRoot?.querySelector('input');
-    if (input) input.placeholder = t('commandPalettePlaceholder');
+    try {
+      const input = this.shadowRoot?.querySelector('input');
+      if (input) {
+        input.placeholder = t('commandPalettePlaceholder');
+      } else {
+        console.warn('No input element found during update.');
+      }
+    } catch (error) {
+      console.error('Error in _update():', error);
+    }
   }
 }
+
 customElements.define('command-palette', CommandPalette);
 
-// Bind Ctrl/⌘+K
+// Bind Ctrl/⌘+K with additional error handling
 window.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-    e.preventDefault();
-    (document.querySelector('command-palette') as any)?.open();
+  try {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      const palette = document.querySelector('command-palette') as CommandPalette;
+      if (palette && typeof palette.open === 'function') {
+        palette.open();
+      } else {
+        console.warn('CommandPalette element not found or open() method missing.');
+      }
+    }
+  } catch (error) {
+    console.error('Error in global keydown handler:', error);
   }
 });
