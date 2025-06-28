@@ -145,6 +145,23 @@
           <label for="color2">Secondary Color:</label>
           <input type="color" id="color2" name="color2" value="#00ffff" title="Choose secondary color" aria-label="Secondary Color">
         </div>
+        <div class="control-group">
+          <fieldset>
+            <legend>IK Target</legend>
+            <div class="sliders">
+              <div class="slider-group">
+                <label for="ikTargetX">Target X:</label>
+                <input type="range" id="ikTargetX" min="-300" max="300" value="0">
+                <span id="ikTargetXValue">0</span>
+              </div>
+              <div class="slider-group">
+                <label for="ikTargetY">Target Y:</label>
+                <input type="range" id="ikTargetY" min="-300" max="300" value="0">
+                <span id="ikTargetYValue">0</span>
+              </div>
+            </div>
+          </fieldset>
+        </div>
         <div class="preview">
           <h2>Character Preview</h2>
           <div id="preview-limbs" aria-label="Character Limbs Preview"></div>
@@ -159,14 +176,8 @@
   </div>
   <script type="module" src="./src/tool-palette.js"></script>
   <script type="module" src="./src/graph-pane.js"></script>
-  <script>
-    // Simple Vector2 class for position management
-    class Vector2 {
-      constructor(x, y) {
-        this.x = x;
-        this.y = y;
-      }
-    }
+  <script type="module">
+    import { Vector2 } from '../../math/vector.js';
 
     class ImprovedSkeletonEditor {
       constructor() {
@@ -623,6 +634,8 @@
         const rotationSlider = this.getElement('boneRotationSlider');
         const xSlider = this.getElement('boneXSlider');
         const ySlider = this.getElement('boneYSlider');
+        const ikTargetX = this.getElement('ikTargetX');
+        const ikTargetY = this.getElement('ikTargetY');
 
         if (lengthSlider) {
           const throttledLengthHandler = this.createThrottledInputHandler(() => {
@@ -668,6 +681,36 @@
             }
           });
           ySlider.oninput = throttledYHandler;
+        }
+
+        if (ikTargetX) {
+          ikTargetX.oninput = () => {
+            const value = +ikTargetX.value;
+            const selectedBone = this.getSelectedBone();
+            if (selectedBone) {
+              // Update IK target position (assuming world space for targets)
+              selectedBone.ikTarget = selectedBone.ikTarget || {};
+              selectedBone.ikTarget.x = value;
+              this.scheduleRender();
+            }
+            const ikTargetXValue = this.getElement('ikTargetXValue');
+            if (ikTargetXValue) ikTargetXValue.textContent = value;
+          };
+        }
+
+        if (ikTargetY) {
+          ikTargetY.oninput = () => {
+            const value = +ikTargetY.value;
+            const selectedBone = this.getSelectedBone();
+            if (selectedBone) {
+              // Update IK target position (assuming world space for targets)
+              selectedBone.ikTarget = selectedBone.ikTarget || {};
+              selectedBone.ikTarget.y = value;
+              this.scheduleRender();
+            }
+            const ikTargetYValue = this.getElement('ikTargetYValue');
+            if (ikTargetYValue) ikTargetYValue.textContent = value;
+          };
         }
       }
 
@@ -859,6 +902,8 @@
         const rotationSlider = this.getElement('boneRotationSlider');
         const xSlider = this.getElement('boneXSlider');
         const ySlider = this.getElement('boneYSlider');
+        const ikTargetX = this.getElement('ikTargetX');
+        const ikTargetY = this.getElement('ikTargetY');
         
         const lengthValue = this.getElement('boneLengthValue');
         const rotationValue = this.getElement('boneRotationValue');
@@ -874,6 +919,18 @@
         if (rotationValue) rotationValue.textContent = bone ? `${bone.rotation}°` : '0°';
         if (xValue) xValue.textContent = bone ? String(bone.position.x) : '0';
         if (yValue) yValue.textContent = bone ? String(bone.position.y) : '0';
+
+        const ikTargetXValue = this.getElement('ikTargetXValue');
+        const ikTargetYValue = this.getElement('ikTargetYValue');
+
+        if (ikTargetX && bone && bone.ikTarget) {
+          ikTargetX.value = bone.ikTarget.x || 0;
+          if (ikTargetXValue) ikTargetXValue.textContent = bone.ikTarget.x || 0;
+        }
+        if (ikTargetY && bone && bone.ikTarget) {
+          ikTargetY.value = bone.ikTarget.y || 0;
+          if (ikTargetYValue) ikTargetYValue.textContent = bone.ikTarget.y || 0;
+        }
       }
 
       renderBoneList() {
@@ -1342,5 +1399,7 @@
       window.editor = editor;
     });
   </script>
+  <script type="module" src="./src/ui/prompt-dialog.js"></script>
+  <prompt-dialog id="promptDlg"></prompt-dialog>
 </body>
 </html>

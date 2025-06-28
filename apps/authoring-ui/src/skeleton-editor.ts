@@ -1,8 +1,12 @@
 // Enhanced 2D Skeleton Editor with improved architecture and performance
 // Integrates with core types, adds undo/redo, DOM caching, and hierarchical support
 
-import { Vector2 } from '@lab/math';
+import { Vector2 } from '../../../math/vector';
 import { History } from '@lab/core';
+import { Bone } from '../../../skeleton/bone';
+import { Skeleton } from '../../../skeleton/skeleton';
+import { solveFABRIK } from '../../../ik/solvers/fabrik';
+import type { GraphPane } from './graph-pane';
 
 interface EditorBone {
   id: symbol;
@@ -13,6 +17,8 @@ interface EditorBone {
   color: string;
   parentId?: symbol;
   visible: boolean;
+  minAngle?: number;
+  maxAngle?: number;
 }
 
 interface EditorState {
@@ -21,7 +27,9 @@ interface EditorState {
 }
 
 class SkeletonEditor {
-  private readonly history: History<EditorState>;
+  private readonly coreSkeleton = new Skeleton();
+  private readonly ikTarget = new Vector2(0, 0);
+  private history: History<EditorState>;
   private readonly domCache: Map<string, HTMLElement> = new Map();
   private renderScheduled = false;
   private color1 = '#ff0000';
@@ -37,7 +45,18 @@ class SkeletonEditor {
     this.initUI();
     this.renderBoneList();
     this.scheduleRender();
-    this.renderStats();
+    const graphPane = document.querySelector('graph-pane') as GraphPane | null;
+    if (graphPane) {
+      this.getElement<HTMLCanvasElement>('characterCanvas')?.addEventListener('metricUpdate', (e: Event) => {
+        const detail = (e as CustomEvent).detail;
+        graphPane.updateData(detail.time, {
+          length: detail.length,
+          rotation: detail.rotation,
+          x: detail.x,
+          y: detail.y
+        });
+      });
+    }
   }
 
   private getElement<T extends HTMLElement>(id: string): T | null {
@@ -90,36 +109,50 @@ class SkeletonEditor {
   }
 
   private addBone(name: string): void {
-    const validation = this.validateBoneName(name);
-    if (validation) {
-      this.showMsg(validation);
-      return;
+    console.debug("addBone called with name:", name);
+    try {
+      const validation = this.validateBoneName(name);
+      if (validation) {
+        this.showMsg(validation);
+        console.debug("Bone name validation failed:", validation);
+        return;
+      }
+
+      const currentState = this.getCurrentState();
+      // Attempt to get the canvas for debugging; log error if not found
+      const canvas = this.getElement<HTMLCanvasElement>('characterCanvas');
+      if (!canvas) {
+        console.warn("Canvas element 'characterCanvas' not found. New bone will be centered at origin.");
+      }
+      // Place new bone at origin; renderPreview will center it on canvas if available
+      const centerPos = new Vector2(0, 0);
+      const newBone: EditorBone = {
+        id: Symbol(name),
+        name,
+        length: 50,
+        rotation: 0,
+        position: centerPos,
+        color: this.color1,
+        visible: true
+      };
+
+      const newBones = new Map(currentState.bones);
+      newBones.set(newBone.id, newBone);
+
+      const newState: EditorState = {
+        bones: newBones,
+        selectedBoneId: newBone.id
+      };
+
+      this.saveState(newState);
+      this.renderBoneList();
+      this.scheduleRender();
+      this.showMsg('Bone added');
+      console.debug("Bone added successfully:", newBone);
+    } catch (error) {
+      this.showMsg('Error adding bone');
+      console.error("Error in addBone:", error);
     }
-
-    const currentState = this.getCurrentState();
-    const newBone: EditorBone = {
-      id: Symbol(name),
-      name,
-      length: 50,
-      rotation: 0,
-      position: new Vector2(0, 0),
-      color: this.color1,
-      visible: true
-    };
-
-    const newBones = new Map(currentState.bones);
-    newBones.set(newBone.id, newBone);
-
-    const newState: EditorState = {
-      bones: newBones,
-      selectedBoneId: newBone.id
-    };
-
-    this.saveState(newState);
-    this.renderBoneList();
-    this.scheduleRender();
-    this.renderStats();
-    this.showMsg('Bone added');
   }
 
   private deleteBone(): void {
@@ -141,7 +174,6 @@ class SkeletonEditor {
     this.saveState(newState);
     this.renderBoneList();
     this.scheduleRender();
-    this.renderStats();
     this.showMsg('Bone deleted');
   }
 
@@ -161,7 +193,6 @@ class SkeletonEditor {
 
     this.saveState(newState);
     this.scheduleRender();
-    this.renderStats();
   }
 
   private selectBone(boneId: symbol): void {
@@ -181,7 +212,6 @@ class SkeletonEditor {
     this.history.undo();
     this.renderBoneList();
     this.scheduleRender();
-    this.renderStats();
     this.updateSliders();
   }
 
@@ -189,7 +219,6 @@ class SkeletonEditor {
     this.history.redo();
     this.renderBoneList();
     this.scheduleRender();
-    this.renderStats();
     this.updateSliders();
   }
 
@@ -202,6 +231,10 @@ class SkeletonEditor {
     const rotationSlider = this.getElement<HTMLInputElement>('boneRotationSlider');
     const xSlider = this.getElement<HTMLInputElement>('boneXSlider');
     const ySlider = this.getElement<HTMLInputElement>('boneYSlider');
+    const ikX = this.getElement<HTMLInputElement>('ikTargetX');
+    const ikXVal = this.getElement<HTMLElement>('ikTargetXValue');
+    const ikY = this.getElement<HTMLInputElement>('ikTargetY');
+    const ikYVal = this.getElement<HTMLElement>('ikTargetYValue');
     const color1Input = this.getElement<HTMLInputElement>('color1');
     const color2Input = this.getElement<HTMLInputElement>('color2');
     const saveBtn = this.getElement<HTMLButtonElement>('saveCharacterBtn');
@@ -278,6 +311,22 @@ class SkeletonEditor {
         }
       });
       ySlider.oninput = throttledYHandler;
+    }
+
+    // IK target sliders
+    if (ikX && ikXVal) {
+      ikX.oninput = () => {
+        this.ikTarget.x = +ikX.value;
+        ikXVal.textContent = ikX.value;
+        this.scheduleRender();
+      };
+    }
+    if (ikY && ikYVal) {
+      ikY.oninput = () => {
+        this.ikTarget.y = +ikY.value;
+        ikYVal.textContent = ikY.value;
+        this.scheduleRender();
+      };
     }
 
     if (color1Input) {
@@ -359,7 +408,7 @@ class SkeletonEditor {
       const li = document.createElement('li');
       li.className = 'bone-list-item' + (bone.id === state.selectedBoneId ? ' selected' : '');
       li.textContent = bone.name;
-      li.dataset.boneId = Symbol.keyFor(bone.id) || bone.id.toString();
+      li.dataset.boneId = Symbol.keyFor(bone.id) ?? bone.id.toString();
       ul.appendChild(li);
     }
     this.updateSliders();
@@ -368,110 +417,135 @@ class SkeletonEditor {
   private renderPreview(): void {
     const canvas = this.getElement<HTMLCanvasElement>('characterCanvas');
     if (!canvas) return;
+    // rebuild core skeleton from editor state
+    this.coreSkeleton.clear();
+    const state = this.getCurrentState();
+    for (const eb of state.bones.values()) {
+      const b = new Bone(
+        eb.id,
+        eb.name,
+        eb.length,
+        eb.rotation * Math.PI / 180,
+        new Vector2(eb.position.x, eb.position.y)
+      );
+      this.coreSkeleton.addBone(b, eb.parentId);
+    }
+    this.coreSkeleton.updateWorldTransform();
+    // perform FABRIK solve if a bone is selected
+    if (state.selectedBoneId) {
+      // build bone chain from root to selected
+      const chain: Bone[] = [];
+      let cur = this.coreSkeleton.getBone(state.selectedBoneId);
+      while (cur) {
+        chain.unshift(cur);
+        cur = cur.parent;
+      }
+      // collect angle limits and bend directions
+      const minA: number[] = [];
+      const maxA: number[] = [];
+      const bendDir: (1| -1)[] = [];
+      chain.forEach(b => {
+        const eb = state.bones.get(b.id)!;
+        minA.push((eb.minAngle ?? 0) * Math.PI/180);
+        maxA.push((eb.maxAngle ?? 0) * Math.PI/180);
+        // default bend direction
+        bendDir.push(1);
+      });
+      // call solver
+      const iterCount = solveFABRIK(chain, this.ikTarget, 10, 0.001, minA, maxA, 0.2, bendDir);
+      // compute distance from end-effector to target
+      const end = chain[chain.length-1].worldPosition;
+      const dx = end.x - this.ikTarget.x;
+      const dy = end.y - this.ikTarget.y;
+      const distance = Math.hypot(dx, dy);
+      // emit solver metrics
+      canvas.dispatchEvent(new CustomEvent('metricUpdate', {
+        detail: { time: performance.now(), iterations: iterCount, distance }
+      }));
+      // after solve, update world transforms with new rotations
+      this.coreSkeleton.updateWorldTransform();
+    }
+    // emit metrics for live graph
+    const now = performance.now();
+    const emitMetrics = (bone: Bone) => {
+      canvas.dispatchEvent(new CustomEvent('metricUpdate', {
+        detail: {
+          boneId: bone.id,
+          time: now,
+          rotation: bone.worldRotation,
+          length: bone.length,
+          x: bone.worldPosition.x,
+          y: bone.worldPosition.y
+        }
+      }));
+      bone.children.forEach(emitMetrics);
+    };
+    this.coreSkeleton.roots.forEach(emitMetrics);
+    // update tooltip for selected bone if constraints exist
+    const sel = state.bones.get(state.selectedBoneId!);
+    canvas.title = sel?.minAngle != null && sel?.maxAngle != null
+      ? `Angle range: ${sel.minAngle}° to ${sel.maxAngle}°` : '';
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    canvas.width = canvas.parentElement?.clientWidth || 400;
-    canvas.height = canvas.parentElement?.clientHeight || 400;
+    canvas.width = canvas.parentElement?.clientWidth ?? 400;
+    canvas.height = canvas.parentElement?.clientHeight ?? 400;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const state = this.getCurrentState();
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    // Render bones with hierarchical support
-    const renderBone = (bone: EditorBone, parentTransform?: { x: number; y: number; rotation: number }) => {
-      if (!bone.visible) return;
-
+    // Draw each bone recursively
+    const drawBone = (bone: Bone) => {
+      const { x, y } = bone.worldPosition;
+      const rot = bone.worldRotation;
       ctx.save();
-      
-      let worldX = centerX + bone.position.x;
-      let worldY = centerY + bone.position.y;
-      let worldRotation = bone.rotation;
-
-      // Apply parent transform if this bone has a parent
-      if (parentTransform) {
-        worldX = parentTransform.x + bone.position.x;
-        worldY = parentTransform.y + bone.position.y;
-        worldRotation = parentTransform.rotation + bone.rotation;
+      ctx.translate(x + centerX, y + centerY);
+      ctx.rotate(rot);
+      const eb = state.bones.get(bone.id)!;
+      if (eb.visible) {
+        ctx.strokeStyle = eb.color;
+        ctx.lineWidth = 8;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(eb.length, 0); ctx.stroke();
+        ctx.fillStyle = eb.color;
+        ctx.beginPath(); ctx.arc(0, 0, 4, 0, 2 * Math.PI); ctx.fill();
       }
-
-      ctx.translate(worldX, worldY);
-      ctx.rotate((worldRotation * Math.PI) / 180);
-      ctx.strokeStyle = bone.color;
-      ctx.lineWidth = 8;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(bone.length, 0);
-      ctx.stroke();
-
-      // Draw joint at bone origin
-      ctx.fillStyle = bone.color;
-      ctx.beginPath();
-      ctx.arc(0, 0, 4, 0, 2 * Math.PI);
-      ctx.fill();
-
       ctx.restore();
-
-      // Render child bones
-      const childBones = Array.from(state.bones.values()).filter(b => b.parentId === bone.id);
-      for (const childBone of childBones) {
-        const endX = worldX + Math.cos(worldRotation * Math.PI / 180) * bone.length;
-        const endY = worldY + Math.sin(worldRotation * Math.PI / 180) * bone.length;
-        renderBone(childBone, { x: endX, y: endY, rotation: worldRotation });
-      }
+      bone.children.forEach(child => drawBone(child));
     };
-
-    // Render root bones (bones without parents)
-    const rootBones = Array.from(state.bones.values()).filter(b => !b.parentId);
-    for (const bone of rootBones) {
-      renderBone(bone);
-    }
+    this.coreSkeleton.roots.forEach(root => drawBone(root));
   }
 
-  private renderStats(): void {
-    const el = this.getElement<HTMLElement>('stats-explanation');
-    if (!el) return;
-
-    const state = this.getCurrentState();
-    const totalBones = state.bones.size;
-    const selectedBone = this.getSelectedBone();
-    
-    let statsText = `Total bones: ${totalBones}`;
-    if (selectedBone) {
-      statsText += ` | Selected: ${selectedBone.name}`;
-      if (selectedBone.parentId) {
-        const parent = state.bones.get(selectedBone.parentId);
-        if (parent) {
-          statsText += ` | Parent: ${parent.name}`;
-        }
-      }
+  private showMsg(msg: string): void {
+    const msgBox = this.getElement<HTMLDivElement>('msgBox');
+    if (msgBox) {
+      msgBox.textContent = msg;
+      msgBox.style.display = 'block';
+      setTimeout(() => { msgBox.style.display = 'none'; }, 3000);
     }
-    
-    el.textContent = statsText;
   }
 
   private saveCharacter(): void {
     const state = this.getCurrentState();
-    const exportData = {
-      bones: Array.from(state.bones.entries()).map(([id, bone]) => ({
-        ...bone,
-        id: Symbol.keyFor(id) || id.toString(),
-        parentId: bone.parentId ? Symbol.keyFor(bone.parentId) || bone.parentId.toString() : undefined,
-        position: { x: bone.position.x, y: bone.position.y }
-      }))
-    };
-
-    const data = JSON.stringify(exportData, null, 2);
+    const data = JSON.stringify(Array.from(state.bones.values()).map(b => ({
+      id: b.id.toString(),
+      name: b.name,
+      length: b.length,
+      rotation: b.rotation,
+      position: { x: b.position.x, y: b.position.y },
+      color: b.color,
+      parentId: b.parentId ? b.parentId.toString() : null,
+      visible: b.visible,
+      minAngle: b.minAngle,
+      maxAngle: b.maxAngle
+    })), null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'character.json';
-    document.body.appendChild(a);
+    a.download = 'skeleton.json';
     a.click();
-    document.body.removeChild(a);
     URL.revokeObjectURL(url);
     this.showMsg('Character saved');
   }
@@ -481,71 +555,59 @@ class SkeletonEditor {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = (e) => {
       try {
-        const data = JSON.parse(reader.result as string);
-        if (!data.bones || !Array.isArray(data.bones)) {
-          throw new Error('Invalid format');
-        }
+        const json = e.target?.result;
+        if (typeof json === 'string') {
+          const bones = JSON.parse(json);
+          const newBones = new Map<symbol, EditorBone>();
+          let selectedBoneId: symbol | null = null;
 
-        const newBones = new Map<symbol, EditorBone>();
-        for (const boneData of data.bones) {
-          const bone: EditorBone = {
-            id: Symbol.for(boneData.id),
-            name: boneData.name,
-            length: boneData.length,
-            rotation: boneData.rotation,
-            position: new Vector2(boneData.position.x, boneData.position.y),
-            color: boneData.color,
-            parentId: boneData.parentId ? Symbol.for(boneData.parentId) : undefined,
-            visible: boneData.visible !== false
+          for (const b of bones) {
+            const boneId = Symbol.for(b.id);
+            newBones.set(boneId, {
+              id: boneId,
+              name: b.name,
+              length: b.length,
+              rotation: b.rotation,
+              position: new Vector2(b.position.x, b.position.y),
+              color: this.color1,
+              visible: b.visible,
+              minAngle: b.minAngle,
+              maxAngle: b.maxAngle
+            });
+            if (b.id === bones[0].id) {
+              selectedBoneId = boneId;
+            }
+          }
+
+          const newState: EditorState = {
+            bones: newBones,
+            selectedBoneId
           };
-          newBones.set(bone.id, bone);
+
+          this.saveState(newState);
+          this.renderBoneList();
+          this.scheduleRender();
+          this.showMsg('Character loaded');
         }
-
-        const newState: EditorState = {
-          bones: newBones,
-          selectedBoneId: null
-        };
-
-        this.saveState(newState);
-        this.renderBoneList();
-        this.scheduleRender();
-        this.renderStats();
-        this.showMsg('Character loaded');
-      } catch {
-        this.showMsg('Invalid file');
+      } catch (err) {
+        this.showMsg('Error loading character');
+        console.error(err);
       }
     };
     reader.readAsText(file);
   }
 
   private resetCharacter(): void {
-    const newState: EditorState = {
+    const initialState: EditorState = {
       bones: new Map(),
       selectedBoneId: null
     };
-
-    this.saveState(newState);
+    // initialize history in resetCharacter
+    this.history = new History(initialState);
     this.renderBoneList();
     this.scheduleRender();
-    this.renderStats();
     this.showMsg('Character reset');
   }
-
-  private showMsg(msg: string): void {
-    const box = this.getElement<HTMLElement>('messageBox');
-    if (!box) return;
-
-    box.textContent = msg;
-    box.classList.add('show');
-    setTimeout(() => box.classList.remove('show'), 1500);
-  }
-}
-
-// Initialize on DOMContentLoaded
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => new SkeletonEditor());
-} else {
-  new SkeletonEditor();
 }

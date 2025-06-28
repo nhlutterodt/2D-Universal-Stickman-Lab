@@ -144,5 +144,101 @@ To support current and future UI/UX features, our codebase must expose clearly s
 3. Build blend graph UI to layer keyframe and procedural animations.
 4. Refine graph-pane controls (scrubber, axis labels, unit scaling).
 5. Benchmark FK/IK loops and optimize hot paths (typed arrays or WASM).
+6. Plug Math Core into Skeleton & IK
+   - Move `Vector2` into `math/vector.ts` with full operations
+   - Create `Matrix3` in `math/matrix.ts` for 2D transforms
+   - Refactor Skeleton, IK, and render modules to import from math core
+   - Apply via constructor injection or direct import to minimize surface changes
 
-*This document will be iterated as we implement and validate each component.*
+---
+🔍 Validation Prompt: “Profile FK update loop with DevTools—do transform ops use math module and avoid allocations?”
+
+### 🔹 Prompt: Connect FABRIK Solver with Skeleton and UI Constraints
+
+**Assumptions:**
+- FABRIK solver implemented in `ik/solvers/fabrik.ts`
+- Bone angle limits defined via UI (min/max sliders)
+- Skeleton supports parent–child hierarchy
+
+**Goal:** Integrate FABRIK solver with real-time Skeleton data, applying soft constraints from bone properties
+
+**Structure:**
+- Implement `solveFABRIK(boneChain: Bone[], target: Vector2)` in `ik/solvers/fabrik.ts`
+- Enforce `minAngle`/`maxAngle` and bend preference during each iteration step
+- Wire UI slider events (`property-panel.ts`) to update `Bone.minAngle`/`maxAngle`
+- Trigger solver on IK target drag and update `Skeleton` transforms
+
+**Example:**
+```ts
+let angle = computeAngle(prevDir, nextDir);
+if (angle < bone.minAngle) {
+  angle = bone.minAngle + softness * (angle - bone.minAngle);
+}
+```
+
+**Checklist:**
+- Solver walks bone hierarchy correctly
+- Constraints enforced per iteration (not post-correction)
+- Smooth easing near limits (no snapping)
+
+🔍 Validation Prompt: “Drag IK target near joint limit—does joint ease into constraint, not snap?”
+
+### 🔹 Prompt: Connect Graph Metrics to Animation and Solver Outputs
+
+**Assumptions:**
+- `<graph-pane>` component is present
+- Metrics tracked but not yet bound to FK/IK output
+
+**Goal:** Stream Skeleton and solver metrics into live graph
+
+**Structure:**
+- Emit `metricUpdate` events from `Skeleton.updateWorldTransform()` and IK solvers
+- Listen in `graph-pane.ts`, update Chart.js datasets on each frame
+- Expose export button to dump JSON of all series
+
+**Example:**
+```ts
+this.dispatchEvent(new CustomEvent('metricUpdate', {
+  detail: { boneId, time, rotation: bone.worldRotation, length: bone.length }
+}));
+```
+
+**Checklist:**
+- Live graph updates for multiple bones
+- Export JSON includes all time-series data
+- Minimal performance impact from event streaming
+
+🔍 Validation Prompt: “Observe live chart while animating—does graph reflect solver output without lag?”
+
+---
+
+### 🔹 Prompt: Wire Blend Graph Outputs into Skeleton Preview
+
+**Assumptions:**
+
+- Blend graph UI exists (or is planned)
+- Skeleton can accept poses from procedural or keyframe sources
+
+**Goal:** Connect the blend graph output node to drive the skeleton pose in the preview canvas
+
+**Structure:**
+
+- Define a `BlendNode` interface with `getPose(): Pose`
+- On each render frame, evaluate the blend graph to produce a `Pose` (rotation and position per bone)
+- Call `Skeleton.setPose(pose)` to apply the blended result
+- Add a UI toggle to enable/disable blend graph preview
+
+**Example:**
+
+```ts
+const pose = blendGraph.evaluate(currentTime);
+skeleton.setPose(pose);
+```
+
+**Checklist:**
+
+- Blend graph correctly interpolates between FK and IK layers
+- Preview updates in response to scrubber or slider changes
+- `Skeleton.setPose` applies poses without unwanted side effects
+
+🔍 Validation Prompt: “Toggle IK and keyframe layers—does the pose update smoothly without jitter or conflict?”
