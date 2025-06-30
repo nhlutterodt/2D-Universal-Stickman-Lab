@@ -19,13 +19,23 @@ import { applySoftAngleLimit, applyBendDirection } from '../constraints.js';
 export function solveFABRIK(
   chain: Bone[],
   target: Vector2,
-  iterations: number = 10,
-  tolerance: number = 0.001,
-  minAngles?: number[],
-  maxAngles?: number[],
-  springFactor: number = 0.2,
-  bendDirections?: (1 | -1)[]
+  options?: {
+    iterations?: number;
+    tolerance?: number;
+    minAngles?: number[];
+    maxAngles?: number[];
+    springFactor?: number;
+    bendDirections?: (1 | -1)[];
+  }
 ): number {
+  const {
+    iterations = 10,
+    tolerance = 0.001,
+    minAngles,
+    maxAngles,
+    springFactor = 0.2,
+    bendDirections
+  } = options || {};
   const n = chain.length;
   if (n === 0) return 0;
 
@@ -39,16 +49,6 @@ export function solveFABRIK(
   }
   // Add end-effector point
   const last = chain[n - 1];
-  positions[n] = new Vector2(
-    last.worldPosition.x + last.length * Math.cos(last.worldRotation),
-    last.worldPosition.y + last.length * Math.sin(last.worldRotation)
-  );
-
-  // Bone lengths
-  const lengths = chain.map(b => b.length);
-  const totalLength = lengths.reduce((a, b) => a + b, 0);
-  const rootPos = positions[0].clone();
-
   // Check reachability
   const distToTarget = positions[0].sub(target).length();
   if (distToTarget > totalLength) {
@@ -58,21 +58,45 @@ export function solveFABRIK(
       positions[i + 1] = positions[i].add(r.scale(lengths[i]));
     }
   } else {
-    // iterative FABRIK
-    let usedIter = iterations;
-    for (let iter = 0; iter < iterations; iter++) {
-      // Forward reaching
-      positions[n] = target.clone();
-      for (let i = n - 1; i >= 0; i--) {
-        const r = positions[i].sub(positions[i + 1]).normalize();
-        positions[i] = positions[i + 1].add(r.scale(lengths[i]));
+    // iterative FABRIK refactored into a helper function
+    function performIterativeFABRIK(
+      positions: Vector2[],
+      lengths: number[],
+      rootPos: Vector2,
+      target: Vector2,
+      iterations: number,
+      tolerance: number
+    ): number {
+      let usedIter = iterations;
+      for (let iter = 0; iter < iterations; iter++) {
+        // Forward reaching
+        positions[positions.length - 1] = target.clone();
+        for (let i = positions.length - 2; i >= 0; i--) {
+          const r = positions[i].sub(positions[i + 1]).normalize();
+          positions[i] = positions[i + 1].add(r.scale(lengths[i]));
+        }
+        // Backward reaching
+        positions[0] = rootPos.clone();
+        for (let i = 0; i < lengths.length; i++) {
+          const r = positions[i + 1].sub(positions[i]).normalize();
+          positions[i + 1] = positions[i].add(r.scale(lengths[i]));
+        }
+        // Check convergence
+        if (positions[positions.length - 1].sub(target).length() < tolerance) {
+          usedIter = iter + 1;
+          break;
+        }
+      }
+      return usedIter;
+    }
+    const usedIter = performIterativeFABRIK(positions, lengths, rootPos, target, iterations, tolerance);
       }
       // Backward reaching
       positions[0] = rootPos.clone();
       for (let i = 0; i < n; i++) {
         const r = positions[i + 1].sub(positions[i]).normalize();
-        positions[i + 1] = positions[i].add(r.scale(lengths[i]));
-      }
+  return usedIter;
+}
       // Check convergence
       if (positions[n].sub(target).length() < tolerance) { usedIter = iter + 1; break; }
     }

@@ -1,4 +1,4 @@
-import { onLocaleChange } from './i18n.js';
+import { onLocaleChange } from './i18n';
 
 /**
  * <tool-palette> for selecting tools on the character canvas.

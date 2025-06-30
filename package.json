@@ -20,7 +20,7 @@
     "pwa": "lab-pwa-build",
     "tauri": "lab-tauri-build",
     "release": "bash ./scripts/release.sh",
-    "list-packages": "node ./scripts/list-packages.js",
+    "list-packages": "ts-node ./scripts/list-packages.ts",
     "security:audit": "npm audit --json > security/audit.json",
     "security:osv": "osv-scanner --lockfile=package-lock.json --json > security/osv.json",
     "security:csp": "ts-node scripts/verify-csp.ts apps/authoring-ui/index.html",

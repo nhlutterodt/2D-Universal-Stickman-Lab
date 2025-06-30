@@ -1,8 +1,8 @@
 // skeleton/skeleton.ts
 // Manages a collection of Bones and performs global FK updates
 
-import { Bone } from './bone.js';
-import { Vector2 } from '../math/vector.js';
+import { Bone } from './bone';
+import { Vector2 } from '../math/vector';
 
 export class Skeleton {
   bones: Map<symbol, Bone> = new Map();
