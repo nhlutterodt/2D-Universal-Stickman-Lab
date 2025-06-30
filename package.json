@@ -8,7 +8,9 @@
   ],
   "scripts": {
     "dev": "pwsh ./scripts/dev.ps1",
-    "build": "tsc",
+    "build": "npx tsc",
+    "build:watch": "npx tsc --watch",
+    "serve": "cd apps/authoring-ui && python -m http.server 8000",
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "lab-test-runner",
     "test:e2e": "lab-e2e",

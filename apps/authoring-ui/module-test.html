@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TypeScript Module Test</title>
+</head>
+<body>
+    <h1>TypeScript Module Test</h1>
+    <div id="test-results"></div>
+    
+    <script type="module">
+        try {
+            // Test Vector2 import
+            const { Vector2 } = await import('../../dist/math/vector.js');
+            console.log('✅ Vector2 loaded successfully');
+            
+            // Test Vector2 functionality
+            const v1 = new Vector2(1, 2);
+            const v2 = new Vector2(3, 4);
+            const v3 = v1.add(v2);
+            console.log('✅ Vector2 math operations work:', v3.x, v3.y);
+            
+            // Test tool-palette import
+            await import('../../dist/apps/authoring-ui/src/tool-palette.js');
+            console.log('✅ Tool palette loaded successfully');
+            
+            // Test graph-pane import
+            await import('../../dist/apps/authoring-ui/src/graph-pane.js');
+            console.log('✅ Graph pane loaded successfully');
+            
+            // Test i18n import
+            await import('../../dist/apps/authoring-ui/src/i18n.js');
+            console.log('✅ i18n loaded successfully');
+            
+            document.getElementById('test-results').innerHTML = 
+                '<p style="color: green;">✅ All modules loaded successfully!</p>';
+                
+        } catch (error) {
+            console.error('❌ Module loading failed:', error);
+            document.getElementById('test-results').innerHTML = 
+                `<p style="color: red;">❌ Error: ${error.message}</p>`;
+        }
+    </script>
+</body>
+</html>

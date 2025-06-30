@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "CommonJS",
+    "module": "ES2022",
     "moduleResolution": "node",
     "outDir": "dist",
     "rootDir": ".",
@@ -9,13 +9,13 @@
     "sourceMap": true,
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true
   },
-  "include": ["apps/**/*", "packages/**/*", "cli/**/*", "scripts/**/*"],
+  "include": ["apps/**/*", "packages/**/*", "scripts/**/*", "math/**/*", "skeleton/**/*", "ik/**/*"],
   "exclude": [
     "node_modules",
     "dist",
-    "cli/*.ts",
-    "apps/authoring-ui/src/tool-palette.ts"
+    "cli/**/*"
   ]
 }

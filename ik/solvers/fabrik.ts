@@ -1,7 +1,7 @@
 // ik/solvers/fabrik.ts
 // FABRIK IK solver with soft angle limits and bend direction hints
 
-import { Vector2 } from '../../math/vector';
+import { Vector2 } from '../../math/vector.js';
 import { Bone } from '../../skeleton/bone.js';
 import { applySoftAngleLimit, applyBendDirection } from '../constraints.js';
 
@@ -9,12 +9,7 @@ import { applySoftAngleLimit, applyBendDirection } from '../constraints.js';
  * Solve IK using the FABRIK algorithm on a 2-bone or longer chain.
  * @param chain Ordered array of bones (root to end-effector)
  * @param target Target position in world coordinates
- * @param iterations Maximum iteration count
- * @param tolerance Distance threshold to stop iterating
- * @param minAngles Optional array of minimum local angle limits per bone
- * @param maxAngles Optional array of maximum local angle limits per bone
- * @param springFactor Soft limit spring correction factor (0-1)
- * @param bendDirections Optional array of bendDirection (1 or -1) per bone
+ * @param options Configuration options for the solver
  */
 export function solveFABRIK(
   chain: Bone[],
@@ -36,6 +31,7 @@ export function solveFABRIK(
     springFactor = 0.2,
     bendDirections
   } = options || {};
+  
   const n = chain.length;
   if (n === 0) return 0;
 
@@ -44,61 +40,57 @@ export function solveFABRIK(
 
   // Build initial joint positions
   const positions: Vector2[] = [];
+  const lengths: number[] = [];
+  
   for (let i = 0; i < n; i++) {
     positions[i] = chain[i].worldPosition.clone();
+    if (i < n - 1) {
+      lengths[i] = chain[i].length;
+    }
   }
+  
   // Add end-effector point
   const last = chain[n - 1];
+  const endPoint = last.worldPosition.add(new Vector2(last.length, 0).rotate(last.worldRotation));
+  positions[n] = endPoint;
+  
+  // Calculate total length
+  const totalLength = lengths.reduce((sum, len) => sum + len, 0);
+  const rootPos = positions[0].clone();
+  
   // Check reachability
   const distToTarget = positions[0].sub(target).length();
+  let usedIter = iterations;
+  
   if (distToTarget > totalLength) {
-    // stretch toward target
+    // Stretch toward target
+    const direction = target.sub(positions[0]).normalize();
     for (let i = 0; i < n; i++) {
-      const r = target.sub(positions[i]).normalize();
-      positions[i + 1] = positions[i].add(r.scale(lengths[i]));
+      positions[i + 1] = positions[i].add(direction.scale(lengths[i]));
     }
+    usedIter = 1;
   } else {
-    // iterative FABRIK refactored into a helper function
-    function performIterativeFABRIK(
-      positions: Vector2[],
-      lengths: number[],
-      rootPos: Vector2,
-      target: Vector2,
-      iterations: number,
-      tolerance: number
-    ): number {
-      let usedIter = iterations;
-      for (let iter = 0; iter < iterations; iter++) {
-        // Forward reaching
-        positions[positions.length - 1] = target.clone();
-        for (let i = positions.length - 2; i >= 0; i--) {
-          const r = positions[i].sub(positions[i + 1]).normalize();
-          positions[i] = positions[i + 1].add(r.scale(lengths[i]));
-        }
-        // Backward reaching
-        positions[0] = rootPos.clone();
-        for (let i = 0; i < lengths.length; i++) {
-          const r = positions[i + 1].sub(positions[i]).normalize();
-          positions[i + 1] = positions[i].add(r.scale(lengths[i]));
-        }
-        // Check convergence
-        if (positions[positions.length - 1].sub(target).length() < tolerance) {
-          usedIter = iter + 1;
-          break;
-        }
+    // Iterative FABRIK
+    for (let iter = 0; iter < iterations; iter++) {
+      // Forward reaching
+      positions[n] = target.clone();
+      for (let i = n - 1; i >= 0; i--) {
+        const r = positions[i].sub(positions[i + 1]).normalize();
+        positions[i] = positions[i + 1].add(r.scale(lengths[i]));
       }
-      return usedIter;
-    }
-    const usedIter = performIterativeFABRIK(positions, lengths, rootPos, target, iterations, tolerance);
-      }
+      
       // Backward reaching
       positions[0] = rootPos.clone();
       for (let i = 0; i < n; i++) {
         const r = positions[i + 1].sub(positions[i]).normalize();
-  return usedIter;
-}
+        positions[i + 1] = positions[i].add(r.scale(lengths[i]));
+      }
+      
       // Check convergence
-      if (positions[n].sub(target).length() < tolerance) { usedIter = iter + 1; break; }
+      if (positions[n].sub(target).length() < tolerance) {
+        usedIter = iter + 1;
+        break;
+      }
     }
   }
 
@@ -108,16 +100,19 @@ export function solveFABRIK(
     const q = positions[i + 1];
     const delta = q.sub(p);
     const globalAngle = Math.atan2(delta.y, delta.x);
-    const parentRot = chain[i].parent ? chain[i].parent.worldRotation : 0;
+    const parentRot = chain[i].parent?.worldRotation ?? 0;
     chain[i].rotation = globalAngle - parentRot;
-    // apply soft limits
+    
+    // Apply soft limits
     if (minAngles && maxAngles) {
       applySoftAngleLimit(chain[i], minAngles[i], maxAngles[i], springFactor);
     }
-    // apply bend direction
+    
+    // Apply bend direction
     if (bendDirections) {
       applyBendDirection(chain[i], 0, bendDirections[i]);
     }
   }
-  return typeof usedIter !== 'undefined' ? usedIter : iterations;
+  
+  return usedIter;
 }

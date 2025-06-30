@@ -1,8 +1,8 @@
 // ik/solvers/analytical.ts
 // Analytical 2-bone IK solver using Law of Cosines
 
-import { Vector2 } from '../../math/vector';
-import { Bone } from '../../skeleton/bone';
+import { Vector2 } from '../../math/vector.js';
+import { Bone } from '../../skeleton/bone.js';
 
 /**
  * Solve a 2-bone IK chain analytically.

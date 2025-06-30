@@ -44,6 +44,15 @@ export class Vector2 {
     return new Vector2(this.x / len, this.y / len);
   }
 
+  rotate(angle: number): Vector2 {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    return new Vector2(
+      this.x * cos - this.y * sin,
+      this.x * sin + this.y * cos
+    );
+  }
+
   toArray(dst?: number[]): number[] {
     if (dst) {
       dst[0] = this.x;

@@ -1,7 +1,7 @@
 /**
  * <i18n-switch> locale switcher element.
  */
-import { setLocale } from './i18n';
+import { setLocale } from './i18n.js';
 
 const template = document.createElement('template');
 template.innerHTML = `

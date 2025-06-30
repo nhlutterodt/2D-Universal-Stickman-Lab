@@ -1,7 +1,7 @@
 // math/matrix.ts
 // 3x3 matrix for 2D transforms, optimized with Float32Array
 
-import { Vector2 } from './vector';
+import { Vector2 } from './vector.js';
 
 export class Matrix3 {
   readonly data: Float32Array;

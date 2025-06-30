@@ -174,11 +174,11 @@
       </div>
     </div>
   </div>
-  <script type="module" src="./src/tool-palette.ts"></script>
-  <script type="module" src="./src/graph-pane.ts"></script>
-  <script type="module" src="./src/ui/prompt-dialog.ts"></script>
+  <script type="module" src="../../dist/apps/authoring-ui/src/tool-palette.js"></script>
+  <script type="module" src="../../dist/apps/authoring-ui/src/graph-pane.js"></script>
+  <script type="module" src="../../dist/apps/authoring-ui/src/ui/prompt-dialog.js"></script>
   <script type="module">
-    import { Vector2 } from '../../math/vector';
+    import { Vector2 } from '../../dist/math/vector.js';
 
     class ImprovedSkeletonEditor {
       constructor() {
@@ -1400,7 +1400,7 @@
       window.editor = editor;
     });
   </script>
-  <script type="module" src="./src/ui/prompt-dialog.js"></script>
+  <script type="module" src="../../dist/apps/authoring-ui/src/ui/prompt-dialog.js"></script>
   <prompt-dialog id="promptDlg"></prompt-dialog>
 </body>
 </html>

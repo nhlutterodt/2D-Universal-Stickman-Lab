@@ -1,12 +1,12 @@
 // Enhanced 2D Skeleton Editor with improved architecture and performance
 // Integrates with core types, adds undo/redo, DOM caching, and hierarchical support
 
-import { Vector2 } from '../../../math/vector';
+import { Vector2 } from '../../../math/vector.js';
 import { History } from '@lab/core';
-import { Bone } from '../../../skeleton/bone';
-import { Skeleton } from '../../../skeleton/skeleton';
-import { solveFABRIK } from '../../../ik/solvers/fabrik';
-import type { GraphPane } from './graph-pane';
+import { Bone } from '../../../skeleton/bone.js';
+import { Skeleton } from '../../../skeleton/skeleton.js';
+import { solveFABRIK } from '../../../ik/solvers/fabrik.js';
+import type { GraphPane } from './graph-pane.js';
 
 interface EditorBone {
   id: symbol;
@@ -452,7 +452,14 @@ class SkeletonEditor {
         bendDir.push(1);
       });
       // call solver
-      const iterCount = solveFABRIK(chain, this.ikTarget, 10, 0.001, minA, maxA, 0.2, bendDir);
+      const iterCount = solveFABRIK(chain, this.ikTarget, {
+        iterations: 10,
+        tolerance: 0.001,
+        minAngles: minA,
+        maxAngles: maxA,
+        springFactor: 0.2,
+        bendDirections: bendDir
+      });
       // compute distance from end-effector to target
       const end = chain[chain.length-1].worldPosition;
       const dx = end.x - this.ikTarget.x;

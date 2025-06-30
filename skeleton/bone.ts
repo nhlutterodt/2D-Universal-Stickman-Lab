@@ -1,8 +1,8 @@
 // skeleton/bone.ts
 // Defines a Bone with parent/child hierarchy and FK transform propagation
 
-import { Vector2 } from '../math/vector';
-import { Matrix3 } from '../math/matrix';
+import { Vector2 } from '../math/vector.js';
+import { Matrix3 } from '../math/matrix.js';
 
 export class Bone {
   readonly id: symbol;
