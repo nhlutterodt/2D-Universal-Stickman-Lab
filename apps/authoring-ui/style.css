@@ -160,6 +160,26 @@ html, body {
   gap: 0.25rem;
 }
 
+/* Special styling for tool controls to properly contain tool-palette */
+.toolbar-section.tool-controls {
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem;
+}
+
+.toolbar-section.tool-controls .toolbar-controls {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  padding: 0.125rem;
+  display: flex;
+  gap: 4px;
+}
+
+.toolbar-section.tool-controls:hover .toolbar-controls {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
 .main-content {
   flex: 1;
   display: flex;

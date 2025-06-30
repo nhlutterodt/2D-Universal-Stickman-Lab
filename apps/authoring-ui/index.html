@@ -81,11 +81,16 @@
           <button id="stopAnimBtn" class="button button-secondary">⏹️ Stop</button>
         </div>
       </div>
+      <div class="toolbar-section tool-controls">
+        <label>Tools:</label>
+        <div class="toolbar-controls">
+          <tool-palette></tool-palette>
+        </div>
+      </div>
     </div>
     <input type="file" id="loadCharacterInput" accept=".json" aria-label="Load Character File">
     <div class="main-content">
       <div class="canvas-container">
-        <tool-palette></tool-palette>
         <canvas id="characterCanvas" aria-label="Character Preview Canvas"></canvas>
         <div class="canvas-overlay">
           <div><strong>Zoom:</strong> <span id="zoomLevel">100%</span></div>

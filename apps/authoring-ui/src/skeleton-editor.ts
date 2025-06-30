@@ -28,12 +28,20 @@ interface EditorState {
 
 class SkeletonEditor {
   private readonly coreSkeleton = new Skeleton();
-  private readonly ikTarget = new Vector2(0, 0);
   private history: History<EditorState>;
   private readonly domCache: Map<string, HTMLElement> = new Map();
   private renderScheduled = false;
   private color1 = '#ff0000';
   private color2 = '#00ffff';
+  
+  // Click-and-drag bone creation state
+  private isDraggingNewBone = false;
+  private dragStartPos: Vector2 | null = null;
+  private dragCurrentPos: Vector2 | null = null;
+  private previewBoneId = 0; // For generating unique preview bone names
+  
+  // IK target
+  private ikTarget = new Vector2(100, 0);
 
   constructor() {
     const initialState: EditorState = {
@@ -43,8 +51,12 @@ class SkeletonEditor {
     this.history = new History(initialState);
     
     this.initUI();
+    this.initCanvasHandlers();
     this.renderBoneList();
     this.scheduleRender();
+    
+    console.log('🎯 Click-and-drag bone creation enabled! Drag on canvas to create bones.');
+    
     const graphPane = document.querySelector('graph-pane') as GraphPane | null;
     if (graphPane) {
       this.getElement<HTMLCanvasElement>('characterCanvas')?.addEventListener('metricUpdate', (e: Event) => {
@@ -522,6 +534,47 @@ class SkeletonEditor {
       bone.children.forEach(child => drawBone(child));
     };
     this.coreSkeleton.roots.forEach(root => drawBone(root));
+    
+    // Draw drag preview if user is dragging
+    if (this.isDraggingNewBone && this.dragStartPos && this.dragCurrentPos) {
+      this.drawDragPreview(ctx, centerX, centerY);
+    }
+  }
+
+  private drawDragPreview(ctx: CanvasRenderingContext2D, centerX: number, centerY: number): void {
+    if (!this.dragStartPos || !this.dragCurrentPos) return;
+
+    const startX = this.dragStartPos.x + centerX;
+    const startY = this.dragStartPos.y + centerY;
+    const endX = this.dragCurrentPos.x + centerX;
+    const endY = this.dragCurrentPos.y + centerY;
+
+    // Draw preview line with dashed style
+    ctx.save();
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = this.color1;
+    ctx.lineWidth = 6;
+    ctx.globalAlpha = 0.7;
+    
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+
+    // Draw start joint
+    ctx.setLineDash([]);
+    ctx.fillStyle = this.color1;
+    ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    ctx.arc(startX, startY, 5, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Draw end joint
+    ctx.beginPath();
+    ctx.arc(endX, endY, 3, 0, 2 * Math.PI);
+    ctx.fill();
+
+    ctx.restore();
   }
 
   private showMsg(msg: string): void {
@@ -616,5 +669,129 @@ class SkeletonEditor {
     this.renderBoneList();
     this.scheduleRender();
     this.showMsg('Character reset');
+  }
+
+  private initCanvasHandlers(): void {
+    const canvas = this.getElement<HTMLCanvasElement>('characterCanvas');
+    if (!canvas) return;
+
+    canvas.addEventListener('mousedown', this.handleCanvasMouseDown.bind(this));
+    canvas.addEventListener('mousemove', this.handleCanvasMouseMove.bind(this));
+    canvas.addEventListener('mouseup', this.handleCanvasMouseUp.bind(this));
+    canvas.addEventListener('mouseleave', this.handleCanvasMouseUp.bind(this)); // Cancel drag on leave
+  }
+
+  private handleCanvasMouseDown(event: MouseEvent): void {
+    const canvas = this.getElement<HTMLCanvasElement>('characterCanvas');
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const canvasX = event.clientX - rect.left;
+    const canvasY = event.clientY - rect.top;
+    
+    // Convert to world coordinates (centered on canvas)
+    const worldX = canvasX - canvas.width / 2;
+    const worldY = canvasY - canvas.height / 2;
+
+    this.isDraggingNewBone = true;
+    this.dragStartPos = new Vector2(worldX, worldY);
+    this.dragCurrentPos = new Vector2(worldX, worldY);
+    
+    event.preventDefault();
+  }
+
+  private handleCanvasMouseMove(event: MouseEvent): void {
+    if (!this.isDraggingNewBone || !this.dragStartPos) return;
+
+    const canvas = this.getElement<HTMLCanvasElement>('characterCanvas');
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const canvasX = event.clientX - rect.left;
+    const canvasY = event.clientY - rect.top;
+    
+    // Convert to world coordinates
+    const worldX = canvasX - canvas.width / 2;
+    const worldY = canvasY - canvas.height / 2;
+
+    this.dragCurrentPos = new Vector2(worldX, worldY);
+    this.scheduleRender(); // Trigger preview rendering
+    
+    event.preventDefault();
+  }
+
+  private handleCanvasMouseUp(event: MouseEvent): void {
+    if (!this.isDraggingNewBone || !this.dragStartPos || !this.dragCurrentPos) {
+      this.isDraggingNewBone = false;
+      this.dragStartPos = null;
+      this.dragCurrentPos = null;
+      return;
+    }
+
+    // Calculate bone properties from drag vector
+    const dragVector = new Vector2(
+      this.dragCurrentPos.x - this.dragStartPos.x,
+      this.dragCurrentPos.y - this.dragStartPos.y
+    );
+
+    const length = Math.hypot(dragVector.x, dragVector.y);
+    
+    // Only create bone if drag distance is significant (min 10 pixels)
+    if (length < 10) {
+      this.isDraggingNewBone = false;
+      this.dragStartPos = null;
+      this.dragCurrentPos = null;
+      this.scheduleRender();
+      return;
+    }
+
+    const rotation = Math.atan2(dragVector.y, dragVector.x) * (180 / Math.PI);
+
+    // Generate unique name for the new bone
+    const boneName = `bone${++this.previewBoneId}`;
+
+    // Create the bone using existing addBone logic but with calculated properties
+    this.addBoneWithProperties(boneName, {
+      length: Math.round(length),
+      rotation: Math.round(rotation),
+      position: this.dragStartPos
+    });
+
+    // Reset drag state
+    this.isDraggingNewBone = false;
+    this.dragStartPos = null;
+    this.dragCurrentPos = null;
+    
+    event.preventDefault();
+  }
+
+  private addBoneWithProperties(name: string, properties: {
+    length: number;
+    rotation: number;
+    position: Vector2;
+  }): void {
+    const currentState = this.getCurrentState();
+    const newBone: EditorBone = {
+      id: Symbol(name),
+      name,
+      length: properties.length,
+      rotation: properties.rotation,
+      position: properties.position,
+      color: this.color1,
+      visible: true
+    };
+
+    const newBones = new Map(currentState.bones);
+    newBones.set(newBone.id, newBone);
+
+    const newState: EditorState = {
+      bones: newBones,
+      selectedBoneId: newBone.id
+    };
+
+    this.saveState(newState);
+    this.renderBoneList();
+    this.scheduleRender();
+    this.showMsg(`Bone "${name}" created via drag`);
   }
 }

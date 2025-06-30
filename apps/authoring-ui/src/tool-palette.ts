@@ -7,27 +7,40 @@ const template = document.createElement('template');
 template.innerHTML = `
     <style>
         :host {
-            position: absolute;
-            top: 16px;
-            left: 16px;
-            z-index: 200;
             display: flex;
             gap: 4px;
-            background: var(--lab-pane-bg, #222);
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-            padding: 4px;
+            width: 100%;
         }
         button {
-            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.4rem 0.6rem;
             border: none;
-            color: var(--lab-fg, #fff);
-            padding: 8px;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 0.8rem;
             cursor: pointer;
-            font-size: 1em;
+            transition: all 0.2s ease-in-out;
+            white-space: nowrap;
+            height: 2rem;
+            min-width: auto;
+            flex: 0 0 auto;
+            background-color: transparent;
+            color: var(--primary-color, #4f46e5);
+        }
+        button:hover:not([selected]) {
+            background-color: rgba(255, 255, 255, 0.7);
+        }
+        button:active {
+            transform: scale(0.98);
         }
         button[selected] {
-            background: var(--lab-focus, #4d90fe);
+            background-color: var(--primary-color, #4f46e5);
+            color: white;
+        }
+        button[selected]:hover {
+            background-color: #3730a3;
         }
     </style>
     <button data-tool="select" title="Select">🖱️</button>
