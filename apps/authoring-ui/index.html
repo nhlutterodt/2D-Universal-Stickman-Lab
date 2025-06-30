@@ -27,14 +27,20 @@
         <button id="loadCharacterBtn" class="button button-secondary" title="Load character from JSON">
           <span>📁</span> Load
         </button>
-        <div style="position: relative;">
+        <div class="export-container">
           <button id="exportBtn" class="button button-secondary" title="Export options">
-            <span>📤</span> Export ▼
+            <span>📤</span> Export <span class="dropdown-arrow">▼</span>
           </button>
           <div id="exportOptions" class="export-options">
-            <div class="export-option" onclick="editor.exportAsPNG()">Export as PNG</div>
-            <div class="export-option" onclick="editor.exportAsSVG()">Export as SVG</div>
-            <div class="export-option" onclick="editor.exportAsGIF()">Export as Animation</div>
+            <button class="export-option" type="button" onclick="editor.exportAsPNG()">
+              <span>🖼️</span> Export as PNG
+            </button>
+            <button class="export-option" type="button" onclick="editor.exportAsSVG()">
+              <span>📐</span> Export as SVG
+            </button>
+            <button class="export-option" type="button" onclick="editor.exportAsGIF()">
+              <span>🎬</span> Export as Animation
+            </button>
           </div>
         </div>
         <button id="resetCharacterBtn" class="button button-secondary" title="Reset character">
@@ -46,29 +52,34 @@
       </div>
     </div>
     <div class="toolbar">
-      <div class="toolbar-section">
+      <div class="toolbar-section view-controls">
         <label>View:</label>
-        <button id="zoomInBtn" class="button button-secondary">🔍+</button>
-        <button id="zoomOutBtn" class="button button-secondary">🔍-</button>
-        <button id="resetZoomBtn" class="button button-secondary">⌂</button>
+        <div class="toolbar-controls">
+          <button id="zoomInBtn" class="button button-secondary">🔍+</button>
+          <button id="zoomOutBtn" class="button button-secondary">🔍-</button>
+          <button id="resetZoomBtn" class="button button-secondary">⌂</button>
+        </div>
       </div>
-      <div class="toolbar-divider"></div>
-      <div class="toolbar-section">
+      <div class="toolbar-section grid-controls">
         <label>Grid:</label>
-        <input type="checkbox" id="showGridToggle" checked>
-        <label for="showGridToggle">Show Grid</label>
+        <div class="toolbar-controls">
+          <input type="checkbox" id="showGridToggle" checked>
+          <label for="showGridToggle">Show Grid</label>
+        </div>
       </div>
-      <div class="toolbar-divider"></div>
-      <div class="toolbar-section">
+      <div class="toolbar-section snap-controls">
         <label>Snap:</label>
-        <input type="checkbox" id="snapToGridToggle">
-        <label for="snapToGridToggle">Snap to Grid</label>
+        <div class="toolbar-controls">
+          <input type="checkbox" id="snapToGridToggle">
+          <label for="snapToGridToggle">Snap to Grid</label>
+        </div>
       </div>
-      <div class="toolbar-divider"></div>
-      <div class="toolbar-section">
+      <div class="toolbar-section animation-controls">
         <label>Animation:</label>
-        <button id="playAnimBtn" class="button button-secondary">▶️ Play</button>
-        <button id="stopAnimBtn" class="button button-secondary">⏹️ Stop</button>
+        <div class="toolbar-controls">
+          <button id="playAnimBtn" class="button button-secondary">▶️ Play</button>
+          <button id="stopAnimBtn" class="button button-secondary">⏹️ Stop</button>
+        </div>
       </div>
     </div>
     <input type="file" id="loadCharacterInput" accept=".json" aria-label="Load Character File">
@@ -575,8 +586,36 @@
       // Toggle export options dropdown
       toggleExportOptions() {
         const options = this.getElement('exportOptions');
-        if (options) {
-          options.classList.toggle('show');
+        const container = document.querySelector('.export-container');
+        
+        if (options && container) {
+          const isOpen = options.classList.contains('show');
+          
+          if (isOpen) {
+            options.classList.remove('show');
+            container.classList.remove('open');
+            document.removeEventListener('click', this.closeExportDropdown);
+          } else {
+            options.classList.add('show');
+            container.classList.add('open');
+            // Close dropdown when clicking outside
+            setTimeout(() => {
+              document.addEventListener('click', this.closeExportDropdown);
+            }, 0);
+          }
+        }
+      }
+
+      // Close export dropdown when clicking outside
+      closeExportDropdown = (event) => {
+        const container = document.querySelector('.export-container');
+        if (container && !container.contains(event.target)) {
+          const options = this.getElement('exportOptions');
+          if (options) {
+            options.classList.remove('show');
+            container.classList.remove('open');
+            document.removeEventListener('click', this.closeExportDropdown);
+          }
         }
       }
 
